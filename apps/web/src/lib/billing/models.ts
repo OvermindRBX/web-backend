@@ -11,6 +11,15 @@ export interface ModelConfig {
 }
 
 export const MODELS: Record<string, ModelConfig> = {
+  "kimi-k2-thinking": {
+    id: "kimi-k2-thinking",
+    name: "Kimi K2 Thinking",
+    provider: "chat.gpt-chatbot.ru",
+    creditCost: 3,
+    requiredTier: "free",
+    description: "Deep reasoning & analysis",
+    icon: "💭",
+  },
   "chatgpt-4o-latest": {
     id: "chatgpt-4o-latest",
     name: "ChatGPT 4o",

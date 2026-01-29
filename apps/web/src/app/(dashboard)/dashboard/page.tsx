@@ -714,7 +714,7 @@ export default function DashboardPage() {
   const [creativeMode, setCreativeMode] = useState(false)
   const [showPresetsClosing, setShowPresetsClosing] = useState(false)
 
-  const [selectedModel, setSelectedModel] = useState("chatgpt-4o-latest")
+  const [selectedModel, setSelectedModel] = useState("kimi-k2-thinking")
   const [showModelsMenu, setShowModelsMenu] = useState(false)
   
   const [webSearchEnabled, setWebSearchEnabled] = useState(false)
@@ -1285,6 +1285,10 @@ export default function DashboardPage() {
         webSearchEnabled,
         canvasEnabled,
         mentorEnabled,
+        thinkingMode,
+        highTemperature,
+        creativeMode,
+        debugMode,
       }
       
       const encryptedpayload = encryptdata(JSON.stringify(payload))
@@ -2164,199 +2168,149 @@ export default function DashboardPage() {
 
               {showContextMenu && (
                 <Card className={cn(
-                  "absolute right-0 bottom-full mb-2 w-72 p-2 z-50 bg-card/95 backdrop-blur-xl border-border/50 shadow-2xl",
+                  "absolute right-0 bottom-full mb-2 w-80 p-3 z-50 bg-card/95 backdrop-blur-xl border-border/50 shadow-2xl",
                   contextMenuClosing ? "animate-dropdown-up-out" : "animate-dropdown-up"
                 )}>
-                  <div className="px-2 py-1.5 mb-1">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">AI Settings</p>
+                  <div className="px-2 py-2 mb-3">
+                    <p className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Settings className="w-4 h-4" />
+                      AI Settings
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">Customize AI behavior</p>
                   </div>
                   
-                  <div 
-                    className="relative"
-                    onMouseEnter={() => setShowModesMenu(true)}
-                    onMouseLeave={() => setShowModesMenu(false)}
-                  >
-                    <button
-                      className="w-full p-2.5 rounded-xl text-left hover:bg-white/5 transition-all duration-200 flex items-center gap-3"
-                    >
-                      <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center">
-                        <Settings className="w-4 h-4 text-blue-400" />
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">AI Modes</div>
-                        <p className="text-xs text-muted-foreground">
-                          {[thinkingMode && "Thinking", highTemperature && "Hot", creativeMode && "Creative", debugMode && "Debug"].filter(Boolean).join(", ") || "None active"}
-                        </p>
-                      </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                    </button>
-
-                    {showModesMenu && (
-                      <div className="absolute right-full bottom-0 pr-1">
-                        <Card className={cn(
-                          "w-64 p-2 bg-card/95 backdrop-blur-xl border-border/50 shadow-2xl",
-                          modesMenuClosing ? "animate-slide-left-out" : "animate-slide-left"
-                        )}>
-                          <div className="px-2 py-1.5 mb-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Toggle Modes</p>
-                          </div>
-                          
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 mb-2">Modes</p>
+                      <div className="grid grid-cols-2 gap-2">
                         <button
                           className={cn(
-                            "w-full p-2.5 rounded-xl text-left transition-all duration-200 flex items-center gap-3",
-                            thinkingMode ? "bg-yellow-500/10 border border-yellow-500/20" : "hover:bg-white/5"
+                            "p-2.5 rounded-lg text-left transition-all duration-200 flex flex-col gap-1.5 border",
+                            thinkingMode 
+                              ? "bg-yellow-500/15 border-yellow-500/30 shadow-lg shadow-yellow-500/10" 
+                              : "bg-white/[0.02] border-border/50 hover:bg-white/[0.05] hover:border-border"
                           )}
                           onClick={() => setThinkingMode(!thinkingMode)}
                         >
-                          <div className={cn(
-                            "w-8 h-8 rounded-lg flex items-center justify-center",
-                            thinkingMode ? "bg-yellow-500/20" : "bg-muted"
-                          )}>
+                          <div className="flex items-center gap-2">
                             <Lightbulb className={cn("w-4 h-4", thinkingMode ? "text-yellow-500" : "text-muted-foreground")} />
+                            {thinkingMode && <Check className="w-3 h-3 text-yellow-500 ml-auto" />}
                           </div>
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">Thinking Mode</div>
-                            <p className="text-xs text-muted-foreground">Deep reasoning</p>
+                          <div>
+                            <div className={cn("font-medium text-xs", thinkingMode ? "text-yellow-500" : "text-foreground")}>Thinking</div>
+                            <p className="text-[10px] text-muted-foreground">Deep reasoning</p>
                           </div>
-                          {thinkingMode && <Check className="w-4 h-4 text-yellow-500" />}
                         </button>
 
                         <button
                           className={cn(
-                            "w-full p-2.5 rounded-xl text-left transition-all duration-200 flex items-center gap-3",
-                            highTemperature ? "bg-red-500/10 border border-red-500/20" : "hover:bg-white/5"
+                            "p-2.5 rounded-lg text-left transition-all duration-200 flex flex-col gap-1.5 border",
+                            highTemperature 
+                              ? "bg-red-500/15 border-red-500/30 shadow-lg shadow-red-500/10" 
+                              : "bg-white/[0.02] border-border/50 hover:bg-white/[0.05] hover:border-border"
                           )}
                           onClick={() => setHighTemperature(!highTemperature)}
                         >
-                          <div className={cn(
-                            "w-8 h-8 rounded-lg flex items-center justify-center",
-                            highTemperature ? "bg-red-500/20" : "bg-muted"
-                          )}>
+                          <div className="flex items-center gap-2">
                             <Thermometer className={cn("w-4 h-4", highTemperature ? "text-red-500" : "text-muted-foreground")} />
+                            {highTemperature && <Check className="w-3 h-3 text-red-500 ml-auto" />}
                           </div>
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">High Temperature</div>
-                            <p className="text-xs text-muted-foreground">More creative</p>
+                          <div>
+                            <div className={cn("font-medium text-xs", highTemperature ? "text-red-500" : "text-foreground")}>Hot</div>
+                            <p className="text-[10px] text-muted-foreground">Experimental</p>
                           </div>
-                          {highTemperature && <Check className="w-4 h-4 text-red-500" />}
                         </button>
 
                         <button
                           className={cn(
-                            "w-full p-2.5 rounded-xl text-left transition-all duration-200 flex items-center gap-3",
-                            creativeMode ? "bg-purple-500/10 border border-purple-500/20" : "hover:bg-white/5"
+                            "p-2.5 rounded-lg text-left transition-all duration-200 flex flex-col gap-1.5 border",
+                            creativeMode 
+                              ? "bg-purple-500/15 border-purple-500/30 shadow-lg shadow-purple-500/10" 
+                              : "bg-white/[0.02] border-border/50 hover:bg-white/[0.05] hover:border-border"
                           )}
                           onClick={() => setCreativeMode(!creativeMode)}
                         >
-                          <div className={cn(
-                            "w-8 h-8 rounded-lg flex items-center justify-center",
-                            creativeMode ? "bg-purple-500/20" : "bg-muted"
-                          )}>
+                          <div className="flex items-center gap-2">
                             <Wand2 className={cn("w-4 h-4", creativeMode ? "text-purple-500" : "text-muted-foreground")} />
+                            {creativeMode && <Check className="w-3 h-3 text-purple-500 ml-auto" />}
                           </div>
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">Creative Mode</div>
-                            <p className="text-xs text-muted-foreground">Imaginative</p>
+                          <div>
+                            <div className={cn("font-medium text-xs", creativeMode ? "text-purple-500" : "text-foreground")}>Creative</div>
+                            <p className="text-[10px] text-muted-foreground">Imaginative</p>
                           </div>
-                          {creativeMode && <Check className="w-4 h-4 text-purple-500" />}
                         </button>
 
                         <button
                           className={cn(
-                            "w-full p-2.5 rounded-xl text-left transition-all duration-200 flex items-center gap-3",
-                            debugMode ? "bg-orange-500/10 border border-orange-500/20" : "hover:bg-white/5"
+                            "p-2.5 rounded-lg text-left transition-all duration-200 flex flex-col gap-1.5 border",
+                            debugMode 
+                              ? "bg-orange-500/15 border-orange-500/30 shadow-lg shadow-orange-500/10" 
+                              : "bg-white/[0.02] border-border/50 hover:bg-white/[0.05] hover:border-border"
                           )}
                           onClick={() => setDebugMode(!debugMode)}
                         >
-                          <div className={cn(
-                            "w-8 h-8 rounded-lg flex items-center justify-center",
-                            debugMode ? "bg-orange-500/20" : "bg-muted"
-                          )}>
+                          <div className="flex items-center gap-2">
                             <Bug className={cn("w-4 h-4", debugMode ? "text-orange-500" : "text-muted-foreground")} />
+                            {debugMode && <Check className="w-3 h-3 text-orange-500 ml-auto" />}
                           </div>
-                          <div className="flex-1">
-                            <div className="font-medium text-sm">Debug Mode</div>
-                            <p className="text-xs text-muted-foreground">Verbose logs</p>
+                          <div>
+                            <div className={cn("font-medium text-xs", debugMode ? "text-orange-500" : "text-foreground")}>Debug</div>
+                            <p className="text-[10px] text-muted-foreground">Verbose logs</p>
                           </div>
-                          {debugMode && <Check className="w-4 h-4 text-orange-500" />}
                         </button>
-                        </Card>
                       </div>
-                    )}
+                    </div>
+
+                    <div>
+                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 mb-2">Model</p>
+                      <div className="space-y-1">
+                        {MODELS.map((model) => {
+                          const isActive = selectedModel === model.id
+                          return (
+                            <button
+                              key={model.id}
+                              className={cn(
+                                "w-full p-2.5 rounded-lg text-left transition-all duration-200 flex items-center gap-2.5 border",
+                                isActive 
+                                  ? "bg-violet-500/15 border-violet-500/30 shadow-lg shadow-violet-500/10" 
+                                  : "bg-white/[0.02] border-border/50 hover:bg-white/[0.05] hover:border-border"
+                              )}
+                              onClick={() => {
+                                setSelectedModel(model.id)
+                                closeContextMenu()
+                              }}
+                            >
+                              <span className="text-lg">{model.icon}</span>
+                              <div className="flex-1 min-w-0">
+                                <div className={cn("font-medium text-sm", isActive && "text-violet-400")}>{model.name}</div>
+                                <p className="text-xs text-muted-foreground">{model.description}</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">{model.creditCost}x</span>
+                                {isActive && <Check className="w-4 h-4 text-violet-500" />}
+                              </div>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
                   </div>
 
-                  <div 
-                    className="relative"
-                    onMouseEnter={() => setShowModelsMenu(true)}
-                    onMouseLeave={() => setShowModelsMenu(false)}
-                  >
+                  <div className="border-t border-border/30 mt-3 pt-3">
                     <button
-                      className="w-full p-2.5 rounded-xl text-left hover:bg-white/5 transition-all duration-200 flex items-center gap-3"
+                      className="w-full p-2.5 rounded-lg text-left hover:bg-red-500/10 transition-all duration-200 flex items-center gap-2.5 border border-transparent hover:border-red-500/20"
+                      onClick={() => {
+                        setMessages([])
+                        closeContextMenu()
+                      }}
                     >
-                      <div className="w-8 h-8 rounded-lg bg-violet-500/20 flex items-center justify-center">
-                        <Brain className="w-4 h-4 text-violet-400" />
-                      </div>
+                      <X className="w-4 h-4 text-red-400" />
                       <div className="flex-1">
-                        <div className="font-medium text-sm">AI Model</div>
-                        <p className="text-xs text-muted-foreground">
-                          {MODELS.find(m => m.id === selectedModel)?.name || "ChatGPT 4o"}
-                        </p>
+                        <div className="font-medium text-sm text-red-400">Clear Chat</div>
+                        <p className="text-xs text-red-400/60">Remove all messages</p>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground" />
                     </button>
-
-                    {showModelsMenu && (
-                      <div className="absolute right-full bottom-0 pr-1">
-                        <Card className="w-56 p-2 bg-card/95 backdrop-blur-xl border-border/50 shadow-2xl animate-slide-left">
-                          <div className="px-2 py-1.5 mb-1">
-                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Select Model</p>
-                          </div>
-                          {MODELS.map((model) => {
-                            const isActive = selectedModel === model.id
-                            return (
-                              <button
-                                key={model.id}
-                                className={cn(
-                                  "relative w-full p-2 rounded-lg text-left transition-colors flex items-center gap-2",
-                                  isActive ? "bg-accent" : "hover:bg-accent/50"
-                                )}
-                                onClick={() => setSelectedModel(model.id)}
-                              >
-                                <span className="text-base">{model.icon}</span>
-                                <div className="flex-1 min-w-0">
-                                  <div className="font-medium text-sm">{model.name}</div>
-                                  <div className="text-xs text-muted-foreground">{model.creditCost}x credits</div>
-                                </div>
-                                {isActive && (
-                                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                                    <Check className="w-4 h-4 text-green-500" />
-                                  </div>
-                                )}
-                              </button>
-                            )
-                          })}
-                        </Card>
-                      </div>
-                    )}
                   </div>
-
-                  <div className="border-t border-white/5 my-2" />
-
-                  <button
-                    className="w-full p-2.5 rounded-xl text-left hover:bg-red-500/10 transition-all duration-200 flex items-center gap-3 text-red-400"
-                    onClick={() => {
-                      setMessages([])
-                      closeContextMenu()
-                    }}
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center">
-                      <X className="w-4 h-4" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-medium text-sm">Clear Chat</div>
-                      <p className="text-xs text-red-400/60">Remove all messages</p>
-                    </div>
-                  </button>
                 </Card>
               )}
             </div>

@@ -244,12 +244,93 @@ export interface BuildPromptOptions {
   userInfo?: { displayName?: string; creditsUsed?: number; creditsTotal?: number }
 }
 
+export type ModesConfig = {
+  thinkingMode?: boolean
+  highTemperature?: boolean
+  creativeMode?: boolean
+  debugMode?: boolean
+}
+
+function generateModesContext(modes?: ModesConfig): string {
+  if (!modes) return ""
+  
+  let context = ""
+  
+  if (modes.thinkingMode) {
+    context += `## THINKING MODE (ACTIVE)
+
+You are in DEEP REASONING mode. Take your time to think through problems thoroughly.
+
+**Enhanced reasoning requirements:**
+- Use extensive <think></think> blocks to show your reasoning process
+- Break down complex problems into smaller logical steps
+- Consider multiple approaches before choosing one
+- Explain your thought process and decision-making
+- Double-check your logic and look for potential issues
+- Think out loud about edge cases and implications
+
+This is NOT just about showing reasoning - you should actually engage in deeper analysis and more careful consideration.
+
+`
+  }
+  
+  if (modes.highTemperature) {
+    context += `## HIGH TEMPERATURE MODE (ACTIVE)
+
+You are in CREATIVE mode with increased randomness and exploration.
+
+**Behavior adjustments:**
+- Be more experimental and willing to try unconventional approaches
+- Explore creative solutions beyond the obvious
+- Take more risks in your suggestions
+- Consider novel patterns and unique implementations
+- Don't be afraid to suggest innovative ideas
+
+`
+  }
+  
+  if (modes.creativeMode) {
+    context += `## CREATIVE MODE (ACTIVE)
+
+You are in IMAGINATIVE mode - think outside the box!
+
+**Creative approach:**
+- Suggest innovative and unique solutions
+- Use creative naming and design patterns
+- Consider artistic and aesthetic aspects
+- Think about user experience and delight
+- Propose elegant and clever implementations
+- Don't just solve problems - make them beautiful
+
+`
+  }
+  
+  if (modes.debugMode) {
+    context += `## DEBUG MODE (ACTIVE - VERBOSE OUTPUT)
+
+You are in VERBOSE DEBUG mode. Provide extensive logging and explanations.
+
+**Verbose requirements:**
+- Explain every step in detail
+- Show intermediate states and values
+- Describe what each function/section does
+- Explain why you're making specific choices
+- Include diagnostic information
+- Be thorough even if it makes responses longer
+
+`
+  }
+  
+  return context
+}
+
 export function buildSystemPrompt(
   preset: Preset, 
   projectContext?: string, 
   userTier?: Tier,
   userInfo?: { displayName?: string; creditsUsed?: number; creditsTotal?: number },
-  featureFlags?: FeatureFlags
+  featureFlags?: FeatureFlags,
+  modes?: ModesConfig
 ): string {
   const basePrompt = loadInternalPrompt()
   const presetConfig = getPreset(preset)
@@ -282,6 +363,11 @@ export function buildSystemPrompt(
     systemPrompt += "\n\n" + featureFlagsContext
   }
   
+  const modesContext = generateModesContext(modes)
+  if (modesContext) {
+    systemPrompt += "\n\n" + modesContext
+  }
+  
   if (tierContext) {
     systemPrompt += "\n\n" + tierContext
   }
@@ -295,7 +381,13 @@ export function buildSystemPrompt(
   if (featureFlags?.mentorEnabled) activeFlags.push("mentor")
   if (featureFlags?.canvasEnabled) activeFlags.push("canvas")
   
-  console.log(`[Prompt] Building for preset: ${preset}, tier: ${userTier || "none"}, flags: [${activeFlags.join(", ")}]`)
+  const activeModes = []
+  if (modes?.thinkingMode) activeModes.push("thinking")
+  if (modes?.highTemperature) activeModes.push("highTemp")
+  if (modes?.creativeMode) activeModes.push("creative")
+  if (modes?.debugMode) activeModes.push("debug")
+  
+  console.log(`[Prompt] Building for preset: ${preset}, tier: ${userTier || "none"}, flags: [${activeFlags.join(", ")}], modes: [${activeModes.join(", ")}]`)
   
   return systemPrompt
 }

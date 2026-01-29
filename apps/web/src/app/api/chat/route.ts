@@ -29,6 +29,10 @@ export async function POST(request: NextRequest) {
     let webSearchEnabled: boolean | undefined
     let canvasEnabled: boolean | undefined
     let mentorEnabled: boolean | undefined
+    let thinkingMode: boolean | undefined
+    let highTemperature: boolean | undefined
+    let creativeMode: boolean | undefined
+    let debugMode: boolean | undefined
     
     if (body.encrypted) {
       try {
@@ -45,6 +49,10 @@ export async function POST(request: NextRequest) {
         webSearchEnabled = parsed.webSearchEnabled
         canvasEnabled = parsed.canvasEnabled
         mentorEnabled = parsed.mentorEnabled
+        thinkingMode = parsed.thinkingMode
+        highTemperature = parsed.highTemperature
+        creativeMode = parsed.creativeMode
+        debugMode = parsed.debugMode
       } catch (error) {
         console.error("decryption error:", error)
         return NextResponse.json({ error: "Invalid encrypted payload" }, { status: 400 })
@@ -62,6 +70,10 @@ export async function POST(request: NextRequest) {
         webSearchEnabled?: boolean
         canvasEnabled?: boolean
         mentorEnabled?: boolean
+        thinkingMode?: boolean
+        highTemperature?: boolean
+        creativeMode?: boolean
+        debugMode?: boolean
       }
       messages = data.messages
       preset = data.preset
@@ -74,6 +86,10 @@ export async function POST(request: NextRequest) {
       webSearchEnabled = data.webSearchEnabled
       canvasEnabled = data.canvasEnabled
       mentorEnabled = data.mentorEnabled
+      thinkingMode = data.thinkingMode
+      highTemperature = data.highTemperature
+      creativeMode = data.creativeMode
+      debugMode = data.debugMode
     }
     
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
@@ -164,7 +180,8 @@ export async function POST(request: NextRequest) {
                 model, 
                 userTier, 
                 userInfo,
-                featureFlags: { webSearchEnabled, canvasEnabled, mentorEnabled }
+                featureFlags: { webSearchEnabled, canvasEnabled, mentorEnabled },
+                modes: { thinkingMode, highTemperature, creativeMode, debugMode }
               })) {
                 if (chunk.done) break
                 
@@ -271,7 +288,7 @@ export async function POST(request: NextRequest) {
       creditsTotal: getDailyCredits(userTier),
     } : undefined
     
-    const response = await chat({ messages, preset, projectContext, provider: effectiveProvider, model, userTier, userInfo: userInfoNonStream })
+    const response = await chat({ messages, preset, projectContext, provider: effectiveProvider, model, userTier, userInfo: userInfoNonStream, modes: { thinkingMode, highTemperature, creativeMode, debugMode } })
     
     let toolResults: { call: unknown; result: unknown }[] = []
     if (hasToolCall(response.content)) {
