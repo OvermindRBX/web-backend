@@ -55,18 +55,32 @@ export async function chat(request: ChatRequest): Promise<ChatResponse> {
   
   console.log(`[Router] Using provider: ${provider}, model: ${model}, tier: ${request.userTier || "none"}`)
   
+  let temperature = 0.7
+  if (request.modes?.highTemperature) {
+    temperature = 1.2
+  } else if (request.modes?.creativeMode) {
+    temperature = 1.0
+  }
+  
+  const apiBody: Record<string, unknown> = {
+    provider,
+    model,
+    messages,
+    stream: false,
+    temperature,
+  }
+  
+  if (request.modes?.thinkingMode) {
+    apiBody.reasoning = true
+  }
+  
   const response = await fetch(`${AI_CONFIG.baseUrl}/api/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${AI_CONFIG.apiKey}`,
     },
-    body: JSON.stringify({
-      provider,
-      model,
-      messages,
-      stream: false,
-    }),
+    body: JSON.stringify(apiBody),
   })
   
   if (!response.ok) {
@@ -99,18 +113,32 @@ export async function* streamChat(request: ChatRequest): AsyncGenerator<StreamCh
   
   console.log(`[Router Stream] Using provider: ${provider}, model: ${model}, tier: ${request.userTier || "none"}`)
   
+  let temperature = 0.7
+  if (request.modes?.highTemperature) {
+    temperature = 1.2
+  } else if (request.modes?.creativeMode) {
+    temperature = 1.0
+  }
+  
+  const apiBody: Record<string, unknown> = {
+    provider,
+    model,
+    messages,
+    stream: true,
+    temperature,
+  }
+  
+  if (request.modes?.thinkingMode) {
+    apiBody.reasoning = true
+  }
+  
   const response = await fetch(`${AI_CONFIG.baseUrl}/api/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${AI_CONFIG.apiKey}`,
     },
-    body: JSON.stringify({
-      provider,
-      model,
-      messages,
-      stream: true,
-    }),
+    body: JSON.stringify(apiBody),
   })
   
   if (!response.ok) {

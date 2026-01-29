@@ -288,7 +288,7 @@ export async function POST(request: NextRequest) {
       creditsTotal: getDailyCredits(userTier),
     } : undefined
     
-    const response = await chat({ messages, preset, projectContext, provider: effectiveProvider, model, userTier, userInfo: userInfoNonStream, modes: { thinkingMode, highTemperature, creativeMode, debugMode } })
+const response = await chat({ messages, preset, projectContext, provider: effectiveProvider, model, userTier, userInfo: userInfoNonStream, featureFlags: { webSearchEnabled, canvasEnabled, mentorEnabled }, modes: { thinkingMode, highTemperature, creativeMode, debugMode } })
     
     let toolResults: { call: unknown; result: unknown }[] = []
     if (hasToolCall(response.content)) {
