@@ -449,7 +449,7 @@ function ToolCallCard({ tool }: { tool: ToolCall }) {
                   className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
                 >
                   <Code className="w-3 h-3" />
-                  {showRaw ? 'Hide' : 'View'} Raw
+                  {showRaw ? "Hide" : "View"} Raw
                 </button>
                 
                 <div 
@@ -1183,7 +1183,7 @@ export default function DashboardPage() {
 
     setConnectionState("connecting")
     
-    // Handshake Part 1: Broadcast discovery to all user's plugins
+    // Handshake Part 1: Broadcast discovery to all users plugins
     if (user) {
       await fetch("/api/rivet", {
         method: "POST",

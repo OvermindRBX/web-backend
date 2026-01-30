@@ -299,7 +299,7 @@ export function SettingsModal() {
       
       try {
         await navigator.clipboard.writeText(data.key)
-      } catch (clipErr) {
+      } catch {
         const textarea = document.createElement("textarea")
         textarea.value = data.key
         textarea.style.position = "fixed"
