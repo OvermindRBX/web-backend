@@ -5,7 +5,13 @@ import { validateApiKey } from "@/lib/auth/keys"
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    let body
+    try {
+      body = await request.json()
+    } catch {
+      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+    }
+    
     const { action, apiKey, data, source } = body
 
     if (source === "roblox") {
@@ -14,10 +20,14 @@ export async function POST(request: NextRequest) {
       }
 
       if (action === "connect") {
+        const isDev = process.env.NODE_ENV !== "production"
         const auth = await validateApiKey(apiKey)
-        let userId = auth.valid ? auth.userId : data?.userId
+        let userId = auth.valid ? auth.userId : (isDev ? "dev-user-001" : data?.userId)
+        
+        console.log(`[Rivet] Plugin connecting - Valid: ${auth.valid}, UserId: ${userId}, DevMode: ${isDev}`)
 
         await db.setRivetConnection(apiKey, { lastPing: Date.now(), userId })
+        console.log(`[Rivet] Connection saved for userId: ${userId}`)
         return NextResponse.json({ success: true, message: "Connected" })
       }
 
@@ -100,12 +110,16 @@ export async function POST(request: NextRequest) {
 
       if (action === "check_connection") {
         const connections = await db.getActiveRivetConnections()
-        const isConnected = connections.length > 0
+        
+        console.log(`[Rivet] Checking connection for userId: ${auth.user?.id}`)
+        console.log(`[Rivet] Found ${connections.length} active connections`)
+        
+        const userConnected = connections.some(conn => conn.userId === auth.user?.id)
 
         return NextResponse.json({ 
           success: true, 
-          connected: isConnected,
-          connectionCount: connections.length,
+          connected: userConnected,
+          connectionCount: connections.filter(conn => conn.userId === auth.user?.id).length,
         })
       }
 

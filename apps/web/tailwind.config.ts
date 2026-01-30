@@ -59,8 +59,16 @@ const config: Config = {
           "100%": { transform: "translateX(0)" },
         },
         shimmer: {
-          "0%": { backgroundPosition: "-200% 0" },
-          "100%": { backgroundPosition: "200% 0" },
+          "0%": { backgroundPosition: "200% 0" },
+          "100%": { backgroundPosition: "-200% 0" },
+        },
+        "rotate-border": {
+          "0%": { "--border-angle": "0deg" },
+          "100%": { "--border-angle": "360deg" },
+        },
+        "pulse-glow": {
+          "0%, 100%": { opacity: "0.4" },
+          "50%": { opacity: "0.8" },
         },
         "dropdown-in": {
           "0%": { opacity: "0", transform: "translateY(-8px) scale(0.95)" },
@@ -122,7 +130,9 @@ const config: Config = {
       animation: {
         "fade-in": "fade-in 0.3s ease-out",
         "slide-in": "slide-in 0.3s ease-out",
-        shimmer: "shimmer 2s infinite linear",
+        shimmer: "shimmer 2.5s ease-in-out infinite",
+        "rotate-border": "rotate-border 2s linear infinite",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
         "dropdown-in": "dropdown-in 0.15s ease-out forwards",
         "dropdown-out": "dropdown-out 0.12s ease-in forwards",
         "dropdown-up": "dropdown-up 0.15s ease-out forwards",

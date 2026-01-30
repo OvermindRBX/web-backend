@@ -61,6 +61,9 @@ import { getAllModels } from "@/lib/billing/models"
 import { WebSearchCard } from "@/components/ui/web-search-card"
 import { WebOutlineCard } from "@/components/ui/web-outline-card"
 import { CanvasPanel, type CanvasHistory } from "@/components/ui/canvas-panel"
+import { SettingsModal } from "@/components/ui/settings-modal"
+import { Skeleton, ChatListSkeleton, CreditsSkeleton } from "@/components/ui/skeleton"
+import { LoadingSpinner } from "@/components/ui/loading-spinner"
 
 type Preset = "fast" | "edit" | "planning" | "unrestricted"
 type ConnectionState = "disconnected" | "connecting" | "connected"
@@ -300,37 +303,37 @@ function ToolCallCard({ tool }: { tool: ToolCall }) {
       case "pending":
         return {
           icon: Loader2,
-          color: "text-muted-foreground",
-          bg: "bg-muted/30",
-          border: "border-border/50",
+          color: "text-white/50",
+          iconbg: "bg-white/[0.06]",
           label: "Queued",
+          labelbg: "bg-white/[0.04]",
           spin: false
         }
       case "executing":
         return {
           icon: Loader2,
-          color: "text-violet-400",
-          bg: "bg-violet-500/10",
-          border: "border-violet-500/30",
-          label: "Executing...",
+          color: "text-white",
+          iconbg: "bg-white/10",
+          label: "Running",
+          labelbg: "bg-white/[0.08]",
           spin: true
         }
       case "success":
         return {
           icon: CheckCircle2,
           color: "text-emerald-400",
-          bg: "bg-emerald-500/10",
-          border: "border-emerald-500/30",
-          label: "Success",
+          iconbg: "bg-emerald-500/10",
+          label: "Complete",
+          labelbg: "bg-emerald-500/10",
           spin: false
         }
       case "error":
         return {
           icon: XCircle,
           color: "text-red-400",
-          bg: "bg-red-500/10",
-          border: "border-red-500/30",
+          iconbg: "bg-red-500/10",
           label: "Failed",
+          labelbg: "bg-red-500/10",
           spin: false
         }
     }
@@ -339,6 +342,7 @@ function ToolCallCard({ tool }: { tool: ToolCall }) {
   const ToolIcon = gettoolicon(tool.name)
   const statusconfig = getstatusconfig(tool.status)
   const StatusIcon = statusconfig.icon
+  const isexecuting = tool.status === "executing"
   
   const gettoolabel = (name: string) => {
     const labels: Record<string, string> = {
@@ -352,100 +356,131 @@ function ToolCallCard({ tool }: { tool: ToolCall }) {
   }
 
   return (
-    <div className={cn(
-      "rounded-lg p-3 my-2 animate-fade-in transition-all duration-200",
-      statusconfig.bg,
-      "border",
-      statusconfig.border
-    )}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className={cn("p-1.5 rounded-md", statusconfig.bg)}>
-            <ToolIcon className={cn("w-4 h-4", statusconfig.color)} />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-medium text-sm text-foreground">{gettoolabel(tool.name)}</span>
-              <span className={cn(
-                "flex items-center gap-1 text-xs px-2 py-0.5 rounded-full",
-                statusconfig.bg,
-                statusconfig.color
-              )}>
-                <StatusIcon className={cn("w-3 h-3", statusconfig.spin && "animate-spin")} />
-                {statusconfig.label}
-              </span>
-            </div>
-            {tool.status === "error" && tool.error && (
-              <p className="text-xs text-red-400 mt-1">{tool.error}</p>
-            )}
-          </div>
-        </div>
-        
-        {Object.keys(tool.args).length > 0 && (
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="p-1 rounded hover:bg-background/50 transition-colors"
-          >
-            <ChevronDown className={cn(
-              "w-4 h-4 text-muted-foreground transition-transform duration-300 ease-out",
-              expanded && "rotate-180"
-            )} />
-          </button>
-        )}
-      </div>
-      
+    <div className="relative my-2 group">
       <div 
-        className="overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
-        style={{ 
-          height: expanded ? contentHeight : 0,
-          opacity: expanded ? 1 : 0,
-          transform: expanded ? 'translateY(0)' : 'translateY(-8px)'
+        className={cn(
+          "relative rounded-xl p-3 backdrop-blur-sm transition-all duration-300",
+          isexecuting && "animate-rotate-border",
+          tool.status === "success" && "border-emerald-500/20",
+          tool.status === "error" && "border-red-500/20"
+        )}
+        style={isexecuting ? {
+          background: `
+            linear-gradient(#1a1a1f, #1a1a1f) padding-box,
+            conic-gradient(
+              from var(--border-angle),
+              transparent 0%,
+              rgba(255, 255, 255, 0.15) 10%,
+              rgba(255, 255, 255, 0.4) 25%,
+              rgba(255, 255, 255, 0.7) 50%,
+              rgba(255, 255, 255, 0.4) 75%,
+              rgba(255, 255, 255, 0.15) 90%,
+              transparent 100%
+            ) border-box
+          `,
+          border: '2px solid transparent',
+          willChange: 'background',
+          transform: 'translateZ(0)',
+        } : {
+          background: '#1a1a1f',
+          border: '1px solid rgba(255,255,255,0.06)',
         }}
       >
-        <div ref={contentRef}>
-          {Object.keys(tool.args).length > 0 && (
-            <div className="mt-3 pt-3 border-t border-border/30 space-y-3">
-              {Object.entries(tool.args).map(([key, value]) => {
-                const cleanValue = value.replace(/<\/?arg[^>]*>/g, "").replace(/<\/?tool[^>]*>/g, "")
-                return (
-                  <div key={key} className="text-xs">
-                    <span className="text-muted-foreground font-medium">{key}:</span>
-                    <pre className="mt-1 p-2 rounded bg-background/50 text-foreground font-mono overflow-x-auto max-h-64 overflow-y-auto scrollbar-thin">
-                      {cleanValue}
-                    </pre>
-                  </div>
-                )
-              })}
-              
-              <button
-                onClick={() => setShowRaw(!showRaw)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-violet-400 transition-colors mt-2"
-              >
-                <Code className="w-3 h-3" />
-                {showRaw ? 'Hide' : 'View'} Raw Signal
-              </button>
-              
-              <div 
-                className="overflow-hidden transition-all duration-200 ease-out"
-                style={{ 
-                  height: showRaw ? 'auto' : 0,
-                  opacity: showRaw ? 1 : 0
-                }}
-              >
-                {showRaw && (
-                  <pre className="p-2 rounded bg-violet-500/5 border border-violet-500/20 text-violet-300 font-mono text-xs overflow-x-auto max-h-[500px] overflow-y-auto scrollbar-thin">
-                    {JSON.stringify({ action: tool.name, args: tool.args }, null, 2)}
-                  </pre>
-                )}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className={cn(
+              "p-2 rounded-lg transition-colors duration-300",
+              statusconfig.iconbg
+            )}>
+              <ToolIcon className={cn("w-4 h-4 transition-colors duration-300", statusconfig.color)} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-sm text-white/90">{gettoolabel(tool.name)}</span>
+                <span className={cn(
+                  "flex items-center gap-1.5 text-[11px] font-medium px-2 py-0.5 rounded-full transition-all duration-300",
+                  statusconfig.labelbg,
+                  statusconfig.color
+                )}>
+                  <StatusIcon className={cn("w-3 h-3", statusconfig.spin && "animate-spin")} />
+                  {statusconfig.label}
+                </span>
               </div>
+              {tool.status === "error" && tool.error && (
+                <p className="text-xs text-red-400/90 mt-1">{tool.error}</p>
+              )}
             </div>
-          )}
+          </div>
           
-          {tool.status === "success" && tool.result && (
-            <div className="mt-2 pt-2 border-t border-border/30">
-              <p className="text-xs text-emerald-400">✓ {tool.result}</p>
-            </div>
+          {Object.keys(tool.args).length > 0 && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="p-1.5 rounded-lg hover:bg-white/[0.06] transition-colors"
+            >
+              <ChevronDown className={cn(
+                "w-4 h-4 text-white/40 transition-transform duration-300 ease-out",
+                expanded && "rotate-180"
+              )} />
+            </button>
           )}
+        </div>
+        
+        <div 
+          className="overflow-hidden transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]"
+          style={{ 
+            height: expanded ? contentHeight : 0,
+            opacity: expanded ? 1 : 0,
+            transform: expanded ? 'translateY(0)' : 'translateY(-8px)'
+          }}
+        >
+          <div ref={contentRef}>
+            {Object.keys(tool.args).length > 0 && (
+              <div className="mt-3 pt-3 border-t border-white/[0.06] space-y-3">
+                {Object.entries(tool.args).map(([key, value]) => {
+                  const cleanValue = value.replace(/<\/?arg[^>]*>/g, "").replace(/<\/?tool[^>]*>/g, "")
+                  return (
+                    <div key={key} className="text-xs">
+                      <span className="text-white/40 font-medium">{key}:</span>
+                      <pre className="mt-1 p-2.5 rounded-lg bg-black/30 text-white/70 font-mono overflow-x-auto max-h-64 overflow-y-auto scrollbar-thin border border-white/[0.04]">
+                        {cleanValue}
+                      </pre>
+                    </div>
+                  )
+                })}
+                
+                <button
+                  onClick={() => setShowRaw(!showRaw)}
+                  className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
+                >
+                  <Code className="w-3 h-3" />
+                  {showRaw ? 'Hide' : 'View'} Raw
+                </button>
+                
+                <div 
+                  className="overflow-hidden transition-all duration-200 ease-out"
+                  style={{ 
+                    height: showRaw ? 'auto' : 0,
+                    opacity: showRaw ? 1 : 0
+                  }}
+                >
+                  {showRaw && (
+                    <pre className="p-2.5 rounded-lg bg-black/40 border border-white/[0.06] text-white/60 font-mono text-xs overflow-x-auto max-h-[500px] overflow-y-auto scrollbar-thin">
+                      {JSON.stringify({ action: tool.name, args: tool.args }, null, 2)}
+                    </pre>
+                  )}
+                </div>
+              </div>
+            )}
+            
+            {tool.status === "success" && tool.result && (
+              <div className="mt-3 pt-3 border-t border-white/[0.06]">
+                <p className="text-xs text-emerald-400/90 flex items-center gap-1.5">
+                  <CheckCircle2 className="w-3 h-3" />
+                  {tool.result}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -685,6 +720,7 @@ export default function DashboardPage() {
   const [newProjectName, setNewProjectName] = useState("")
 
   const [chats, setChats] = useState<Chat[]>([])
+  const [chatsLoading, setChatsLoading] = useState(true)
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null)
   const [chatContextMenu, setChatContextMenu] = useState<{ open: boolean; position: { x: number; y: number }; chat: Chat | null }>({
     open: false,
@@ -714,7 +750,7 @@ export default function DashboardPage() {
   const [creativeMode, setCreativeMode] = useState(false)
   const [showPresetsClosing, setShowPresetsClosing] = useState(false)
 
-  const [selectedModel, setSelectedModel] = useState("kimi-k2-thinking")
+  const [selectedModel, setSelectedModel] = useState("gpt-4.1-mini")
   const [showModelsMenu, setShowModelsMenu] = useState(false)
   
   const [webSearchEnabled, setWebSearchEnabled] = useState(false)
@@ -872,6 +908,31 @@ export default function DashboardPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
+  useEffect(() => {
+    if (connectionState === "connected") return
+    
+    const autoCheckInterval = setInterval(async () => {
+      if (connectionState === "connecting") return
+      const isConnected = await checkPluginConnection()
+      if (isConnected && connectionState !== "connected") {
+        setConnectionState("connected")
+        connectionCheckRef.current = setInterval(async () => {
+          const stillConnected = await checkPluginConnection()
+          if (!stillConnected) {
+            setConnectionState("disconnected")
+            if (connectionCheckRef.current) {
+              clearInterval(connectionCheckRef.current)
+              connectionCheckRef.current = null
+            }
+          }
+        }, 5000)
+        clearInterval(autoCheckInterval)
+      }
+    }, 3000)
+
+    return () => clearInterval(autoCheckInterval)
+  }, [connectionState])
+
   async function fetchProjects() {
     try {
       const res = await fetch("/api/projects")
@@ -928,6 +989,7 @@ export default function DashboardPage() {
     const cached = loadchatsfromcache()
     if (cached && cached.length > 0) {
       setChats(cached)
+      setChatsLoading(false)
     }
     
     try {
@@ -938,6 +1000,9 @@ export default function DashboardPage() {
       setChats(fetchedchats)
       savechatstocache(fetchedchats)
     } catch {}
+    finally {
+      setChatsLoading(false)
+    }
   }
 
   async function createChat() {
@@ -1453,8 +1518,10 @@ export default function DashboardPage() {
 
               const { tools: parsedTools, thinking } = parseToolCalls(assistantContent)
               
-              parsedTools.forEach(pt => {
+              for (const pt of parsedTools) {
                 const isCanvasTool = ["canvas_write", "canvas_append", "canvas_clear"].includes(pt.name)
+                const isRobloxTool = ["create_script", "update_script", "delete_script", "create_object", "update_object", "delete_object", "move_object", "clone_object", "run_code", "search_workspace"].includes(pt.name)
+                
                 if (isCanvasTool && pt.status === "pending" && !toolStatuses[pt.name]) {
                   if (pt.name === "canvas_write") {
                     updateCanvasContent(pt.args.content || "")
@@ -1470,7 +1537,18 @@ export default function DashboardPage() {
                     toolStatuses[pt.name] = { status: "success", result: "Canvas cleared" }
                   }
                 }
-              })
+                
+                if (isRobloxTool && !toolStatuses[pt.name]) {
+                  toolStatuses[pt.name] = { status: "executing" }
+                  
+                  const success = await emitSignal(pt.name, pt.args)
+                  if (success) {
+                    toolStatuses[pt.name] = { status: "success", result: "Sent to Roblox" }
+                  } else {
+                    toolStatuses[pt.name] = { status: "error", error: "Plugin not connected" }
+                  }
+                }
+              }
               
               if (parsedTools.length > 0) {
                 console.log("[Chat] Parsed tools:", parsedTools.map(t => t.name), "Statuses:", toolStatuses)
@@ -1608,10 +1686,10 @@ export default function DashboardPage() {
         sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       )}>
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary/60 rounded-xl flex items-center justify-center">
-            <Brain className="w-5 h-5 text-white" />
+          <div className="w-9 h-9 bg-white/[0.06] rounded-lg flex items-center justify-center border border-white/[0.08]">
+            <Brain className="w-5 h-5 text-white/80" />
           </div>
-          <span className="text-xl font-bold gradient-text">Overmind</span>
+          <span className="text-lg font-semibold text-white/90 tracking-tight">Overmind</span>
         </div>
 
         <div className="mb-4">
@@ -1676,7 +1754,9 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-1">
-            {sortedChats.length === 0 ? (
+            {chatsLoading ? (
+              <ChatListSkeleton />
+            ) : sortedChats.length === 0 ? (
               <p className="text-xs text-muted-foreground text-center py-4">No chats yet</p>
             ) : (
               sortedChats.map((chat) => (
@@ -1721,55 +1801,49 @@ export default function DashboardPage() {
             </div>
           </Button>
           <div className="flex gap-1">
-            <Button variant="ghost" className="flex-1 justify-start gap-2 px-3" size="sm" onClick={() => router.push("/settings?tab=account")}>
+            <Button variant="ghost" className="flex-1 justify-start gap-2 px-3" size="sm" onClick={() => router.push("?settings=true&tab=account")}>
               <Settings className="w-4 h-4" />
               Settings
             </Button>
-            <Button variant="ghost" className="flex-1 justify-start gap-2 px-3" size="sm" onClick={() => router.push("/settings?tab=api-keys")}>
+            <Button variant="ghost" className="flex-1 justify-start gap-2 px-3" size="sm" onClick={() => router.push("?settings=true&tab=api-keys")}>
               <Key className="w-4 h-4" />
               Keys
             </Button>
           </div>
 
 
-          <div className="relative rounded-xl bg-gradient-to-br from-violet-500/10 via-purple-500/5 to-fuchsia-500/10 backdrop-blur-md border border-white/10">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-violet-600/20 via-transparent to-transparent opacity-60 rounded-xl" />
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,_var(--tw-gradient-stops))] from-fuchsia-600/15 via-transparent to-transparent opacity-40 rounded-xl" />
-            
-            <div className="relative flex items-center gap-2 px-2.5 py-2">
+          <div className="rounded-xl bg-[#111115]/80 backdrop-blur-sm border border-white/[0.06]">
+            <div className="flex items-center gap-2 px-3 py-2.5">
               <div className={cn(
-                "px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex-shrink-0",
-                currentTier === "free" && "bg-gradient-to-r from-violet-500/30 to-purple-500/30 text-violet-200",
-                currentTier === "pro" && "bg-gradient-to-r from-violet-500/40 to-fuchsia-500/40 text-violet-100",
-                currentTier === "studio" && "bg-gradient-to-r from-amber-500/40 to-orange-500/40 text-amber-100"
+                "px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider flex-shrink-0",
+                currentTier === "free" && "bg-white/[0.06] text-white/60",
+                currentTier === "pro" && "bg-violet-500/20 text-violet-300",
+                currentTier === "studio" && "bg-amber-500/20 text-amber-300"
               )}>
                 {currentTier}
               </div>
               
-              {credits && (
+              {credits ? (
                 <>
-                  <div className="h-3 w-px bg-gradient-to-b from-transparent via-white/20 to-transparent flex-shrink-0" />
-                  <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-white/5 border border-white/10 flex-shrink-0">
-                    <div className="relative">
-                      <div className="absolute inset-0 bg-violet-500/50 blur-md rounded-full" />
-                      <div className="relative p-0.5 rounded bg-gradient-to-br from-violet-500/30 to-purple-500/30">
-                        <Zap className="w-3 h-3 text-violet-300" />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-0.5 text-[11px] font-semibold whitespace-nowrap">
-                      <span className="text-white">{credits.available}</span>
-                      <span className="text-white/30">/</span>
-                      <span className="text-white/50">{credits.total}</span>
+                  <div className="h-3 w-px bg-white/[0.08] flex-shrink-0" />
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    <Zap className="w-3 h-3 text-white/40" />
+                    <div className="flex items-center gap-0.5 text-[11px] font-medium whitespace-nowrap">
+                      <span className="text-white/80">{credits.available}</span>
+                      <span className="text-white/20">/</span>
+                      <span className="text-white/40">{credits.total}</span>
                     </div>
                   </div>
                 </>
+              ) : (
+                <CreditsSkeleton />
               )}
               
               <div className="flex-1 min-w-0" />
               
               <button
                 onClick={handleLogout}
-                className="p-1.5 rounded-lg text-muted-foreground hover:text-red-400 hover:bg-red-500/15 transition-all hover:scale-110 active:scale-95 border border-transparent hover:border-red-500/20 flex-shrink-0"
+                className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors flex-shrink-0"
                 title="Logout"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -2402,6 +2476,8 @@ export default function DashboardPage() {
         initialValue={renameModal.chat?.name || ""}
         confirmText="Rename"
       />
+
+      <SettingsModal />
     </div>
   )
 }

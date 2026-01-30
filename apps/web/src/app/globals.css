@@ -2,6 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
+@property --border-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -49,14 +55,18 @@
   * {
     @apply border-border;
   }
-  
-  html, body {
+
+  html,
+  body {
     @apply font-sans;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1;
   }
 
   /* Force prose to use our font */
-  .prose, .prose * {
+  .prose,
+  .prose * {
     font-family: inherit !important;
   }
 }
@@ -95,23 +105,39 @@
 }
 
 @keyframes rainbow {
-  0% { background-position: 0% 50%; }
-  100% { background-position: 200% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes ellipsis {
-  0% { content: '.'; }
-  33% { content: '..'; }
-  66% { content: '...'; }
-  100% { content: '.'; }
+  0% {
+    content: ".";
+  }
+  33% {
+    content: "..";
+  }
+  66% {
+    content: "...";
+  }
+  100% {
+    content: ".";
+  }
 }
 
 .animate-ellipsis::after {
-  content: '.';
+  content: ".";
   animation: ellipsis 1.5s infinite;
 }

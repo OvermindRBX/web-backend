@@ -162,26 +162,50 @@ export async function* streamChat(request: ChatRequest): AsyncGenerator<StreamCh
     buffer = lines.pop() || ""
     
     for (const line of lines) {
-      if (line.startsWith("data: ")) {
-        const data = line.slice(6)
-        if (data === "[DONE]") {
+      const trimmed = line.trim()
+      if (!trimmed) continue
+      
+      let data = ""
+      if (trimmed.startsWith("data: ")) {
+        data = trimmed.slice(6)
+      } else if (trimmed.startsWith("data:")) {
+        data = trimmed.slice(5)
+      } else if (trimmed.startsWith("message\t")) {
+        data = trimmed.slice(8)
+      } else if (trimmed.startsWith("message ")) {
+        data = trimmed.slice(8)
+      } else if (trimmed.startsWith("{")) {
+        data = trimmed
+      } else {
+        continue
+      }
+      
+      data = data.trim()
+      if (!data) continue
+      
+      if (data === "[DONE]") {
+        yield { done: true }
+        return
+      }
+      
+      try {
+        const parsed = JSON.parse(data)
+        const delta = parsed.choices?.[0]?.delta
+        if (delta?.content || delta?.reasoning_content) {
+          yield {
+            content: delta.content,
+            reasoning_content: delta.reasoning_content,
+            done: false,
+          }
+        }
+        
+        const finishReason = parsed.choices?.[0]?.finish_reason
+        if (finishReason === "stop") {
           yield { done: true }
           return
         }
-        
-        try {
-          const parsed = JSON.parse(data)
-          const delta = parsed.choices?.[0]?.delta
-          if (delta?.content || delta?.reasoning_content) {
-            yield {
-              content: delta.content,
-              reasoning_content: delta.reasoning_content,
-              done: false,
-            }
-          }
-        } catch {
-          continue
-        }
+      } catch {
+        continue
       }
     }
   }

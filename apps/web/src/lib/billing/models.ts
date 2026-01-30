@@ -11,23 +11,59 @@ export interface ModelConfig {
 }
 
 export const MODELS: Record<string, ModelConfig> = {
-  "kimi-k2-thinking": {
-    id: "kimi-k2-thinking",
-    name: "Kimi K2 Thinking",
+  "gpt-4.1-mini": {
+    id: "gpt-4.1-mini",
+    name: "GPT-4.1 Mini",
     provider: "chat.gpt-chatbot.ru",
-    creditCost: 3,
+    creditCost: 0.5,
     requiredTier: "free",
-    description: "Deep reasoning & analysis",
-    icon: "💭",
+    description: "Fast & efficient",
+    icon: "🚀",
   },
-  "chatgpt-4o-latest": {
-    id: "chatgpt-4o-latest",
-    name: "ChatGPT 4o",
+  "gpt-4o-latest": {
+    id: "gpt-4o-latest",
+    name: "GPT-4o",
     provider: "chat.gpt-chatbot.ru",
     creditCost: 1,
     requiredTier: "free",
     description: "Fast and capable",
-    icon: "🤖",
+    icon: "⚡",
+  },
+  "o3-mini": {
+    id: "o3-mini",
+    name: "O3 Mini",
+    provider: "chat.gpt-chatbot.ru",
+    creditCost: 2,
+    requiredTier: "free",
+    description: "Compact reasoning model",
+    icon: "�",
+  },
+  "o1-preview": {
+    id: "o1-preview",
+    name: "O1 Preview",
+    provider: "chat.gpt-chatbot.ru",
+    creditCost: 5,
+    requiredTier: "pro",
+    description: "Advanced reasoning",
+    icon: "🧠",
+  },
+  "mistralai/mistral-large-3-675b-instruct-2512": {
+    id: "mistralai/mistral-large-3-675b-instruct-2512",
+    name: "Mistral Large 675B",
+    provider: "chat.gpt-chatbot.ru",
+    creditCost: 4,
+    requiredTier: "pro",
+    description: "Powerful open model",
+    icon: "🌀",
+  },
+  "gpt-5.1": {
+    id: "gpt-5.1",
+    name: "GPT-5.1",
+    provider: "chat.gpt-chatbot.ru",
+    creditCost: 10,
+    requiredTier: "studio",
+    description: "Most capable model",
+    icon: "💎",
   },
   "anthropic/claude-sonnet-4": {
     id: "anthropic/claude-sonnet-4",
@@ -35,8 +71,8 @@ export const MODELS: Record<string, ModelConfig> = {
     provider: "chat.gpt-chatbot.ru",
     creditCost: 2.5,
     requiredTier: "free",
-    description: "Advanced reasoning",
-    icon: "🧠",
+    description: "Balanced intelligence",
+    icon: "✨",
   },
 }
 
