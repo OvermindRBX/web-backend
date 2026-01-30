@@ -914,7 +914,7 @@ export default function DashboardPage() {
     const autoCheckInterval = setInterval(async () => {
       if (connectionState === "connecting") return
       const isConnected = await checkPluginConnection()
-      if (isConnected && connectionState !== "connected") {
+      if (isConnected) {
         setConnectionState("connected")
         connectionCheckRef.current = setInterval(async () => {
           const stillConnected = await checkPluginConnection()
