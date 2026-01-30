@@ -579,7 +579,7 @@ export function SettingsModal() {
                         <Key className="w-4 h-4 text-emerald-400" />
                         <span className="text-sm font-medium text-emerald-400">Save Your API Key</span>
                       </div>
-                      <p className="text-xs text-white/50 mb-3">Copy this key now. You won't see it again!</p>
+                      <p className="text-xs text-white/50 mb-3">Copy this key now. You won&apos;t see it again!</p>
                       <div className="flex gap-2">
                         <Input value={newPlainKey} readOnly className="font-mono text-xs bg-black/30 border-white/[0.08] text-white" />
                         <Button onClick={() => handleCopy(newPlainKey)} size="icon" className="bg-white/10 hover:bg-white/[0.15] border-0">
@@ -587,7 +587,7 @@ export function SettingsModal() {
                         </Button>
                       </div>
                       <Button variant="ghost" className="mt-3 text-white/50 hover:text-white" onClick={() => setNewPlainKey("")}>
-                        I've saved the key
+                        I&apos;ve saved the key
                       </Button>
                     </div>
                   )}
