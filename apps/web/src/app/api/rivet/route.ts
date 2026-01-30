@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
       if (action === "connect") {
         const isDev = process.env.NODE_ENV !== "production"
         const auth = await validateApiKey(apiKey)
-        let userId = auth.valid ? auth.userId : (isDev ? "dev-user-001" : data?.userId)
+        const userId = auth.valid ? auth.userId : (isDev ? "dev-user-001" : data?.userId)
         
         console.log(`[Rivet] Plugin connecting - Valid: ${auth.valid}, UserId: ${userId}, DevMode: ${isDev}`)
 

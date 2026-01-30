@@ -35,6 +35,8 @@ import {
   Trash2,
   CheckCircle2,
   XCircle,
+  Crown,
+  Sparkles,
   Code,
   Search,
   Copy,
@@ -162,7 +164,7 @@ function parseToolCalls(content: string): { text: string; tools: ToolCall[]; thi
     tools.push({ name: toolName, args, status: "executing" })
   }
   
-  let text = content
+  const text = content
     .replace(toolRegex, "")
     .replace(thinkRegex, "")
     .replace(/<tool\s+name="[^"]*">[\s\S]*$/, "")
@@ -1943,7 +1945,7 @@ export default function DashboardPage() {
             {connectionState === "disconnected" && (
               <div className="flex items-center gap-2 p-3 bg-yellow-500/10 backdrop-blur-md border border-yellow-500/20 rounded-xl text-yellow-500 text-sm shadow-xl animate-in fade-in slide-in-from-top-4 pointer-events-auto">
                 <AlertCircle className="w-4 h-4" />
-                <span className="flex-1">Roblox Studio not connected. Click "Connect Roblox" to enable script creation.</span>
+                <span className="flex-1">Roblox Studio not connected. Click &quot;Connect Roblox&quot; to enable script creation.</span>
               </div>
             )}
 

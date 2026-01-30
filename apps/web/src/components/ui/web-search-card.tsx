@@ -95,7 +95,7 @@ export function WebSearchCard({ query, results = [], status, error }: WebSearchC
                 {config.label}
               </span>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">"{query}"</p>
+            <p className="text-xs text-muted-foreground mt-0.5">&quot;{query}&quot;</p>
           </div>
         </div>
 
