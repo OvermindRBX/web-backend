@@ -656,7 +656,7 @@ function CollapsibleUserMessage({ content }: { content: string }) {
 
   return (
     <div 
-      className="max-w-[90%] sm:max-w-[80%] lg:max-w-[70%] rounded-2xl bg-primary text-primary-foreground cursor-pointer select-none"
+      className="max-w-[90%] sm:max-w-[80%] lg:max-w-[70%] rounded-2xl bg-primary text-primary-foreground"
       onClick={() => needsCollapse && setIsExpanded(!isExpanded)}
     >
       <div
