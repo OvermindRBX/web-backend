@@ -8,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import { 
   Brain, 
-  Send, 
   Settings, 
   Folder, 
   MessageSquare, 
@@ -29,17 +28,13 @@ import {
   Check,
   X,
   Skull,
-  MoreVertical,
   Lightbulb,
   Thermometer,
   Wand2,
   Bug,
   Trash2,
-  Lock,
   CheckCircle2,
   XCircle,
-  Crown,
-  Sparkles,
   Code,
   Search,
   Copy,
@@ -62,8 +57,7 @@ import { WebSearchCard } from "@/components/ui/web-search-card"
 import { WebOutlineCard } from "@/components/ui/web-outline-card"
 import { CanvasPanel, type CanvasHistory } from "@/components/ui/canvas-panel"
 import { SettingsModal } from "@/components/ui/settings-modal"
-import { Skeleton, ChatListSkeleton, CreditsSkeleton } from "@/components/ui/skeleton"
-import { LoadingSpinner } from "@/components/ui/loading-spinner"
+import { ChatListSkeleton, CreditsSkeleton } from "@/components/ui/skeleton"
 
 type Preset = "fast" | "edit" | "planning" | "unrestricted"
 type ConnectionState = "disconnected" | "connecting" | "connected"
@@ -742,8 +736,6 @@ export default function DashboardPage() {
 
   const [showContextMenu, setShowContextMenu] = useState(false)
   const [contextMenuClosing, setContextMenuClosing] = useState(false)
-  const [showModesMenu, setShowModesMenu] = useState(false)
-  const [modesMenuClosing, setModesMenuClosing] = useState(false)
   const [thinkingMode, setThinkingMode] = useState(false)
   const [highTemperature, setHighTemperature] = useState(false)
   const [debugMode, setDebugMode] = useState(false)
@@ -751,7 +743,6 @@ export default function DashboardPage() {
   const [showPresetsClosing, setShowPresetsClosing] = useState(false)
 
   const [selectedModel, setSelectedModel] = useState("gpt-4.1-mini")
-  const [showModelsMenu, setShowModelsMenu] = useState(false)
   
   const [webSearchEnabled, setWebSearchEnabled] = useState(false)
   const [canvasEnabled, setCanvasEnabled] = useState(false)
@@ -856,13 +847,9 @@ export default function DashboardPage() {
 
   const closeContextMenu = () => {
     setContextMenuClosing(true)
-    setModesMenuClosing(true)
-    setShowModelsMenu(false)
     setTimeout(() => {
       setShowContextMenu(false)
-      setShowModesMenu(false)
       setContextMenuClosing(false)
-      setModesMenuClosing(false)
     }, 120)
   }
 
@@ -886,6 +873,7 @@ export default function DashboardPage() {
     fetchUser()
     fetchProjects()
     fetchBillingInfo()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -896,12 +884,14 @@ export default function DashboardPage() {
         selectChat(chat)
       }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [chats, searchParams, selectedChat])
 
   useEffect(() => {
     if (selectedProject) {
       fetchChats(selectedProject.id)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProject])
 
   useEffect(() => {
