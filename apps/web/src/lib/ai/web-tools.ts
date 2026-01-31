@@ -12,7 +12,7 @@ interface OutlineResult {
 }
 
 export async function performwebsearch(query: string): Promise<{ query: string; resultCount: number; results: SearchResult[] }> {
-  const searchurl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
+  const searchurl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`
 
   const response = await fetch(searchurl, {
     method: "GET",
@@ -38,7 +38,7 @@ export async function performwebsearch(query: string): Promise<{ query: string; 
   }
 
   const html = await response.text()
-  const results = parsesearchresults(html)
+  const results = parseliteresults(html)
 
   return {
     query,
@@ -47,29 +47,23 @@ export async function performwebsearch(query: string): Promise<{ query: string; 
   }
 }
 
-function parsesearchresults(html: string): SearchResult[] {
+function parseliteresults(html: string): SearchResult[] {
   const results: SearchResult[] = []
 
-  const resultregex = /<a[^>]+class="result__a"[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/gi
-  const snippetregex = /<a[^>]+class="result__snippet"[^>]*>([^<]*(?:<[^>]+>[^<]*)*)<\/a>/gi
+  const linkregex = /<a[^>]+class="result-link"[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>|<a[^>]+href="([^"]*)"[^>]*class="result-link"[^>]*>([^<]*)<\/a>/gi
+  const snippetregex = /<td[^>]*class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi
 
-  const titlematches = [...html.matchAll(resultregex)]
+  const linkmatches = [...html.matchAll(linkregex)]
   const snippetmatches = [...html.matchAll(snippetregex)]
 
-  for (let i = 0; i < Math.min(titlematches.length, 6); i++) {
-    const titlematch = titlematches[i]
+  for (let i = 0; i < Math.min(linkmatches.length, 10); i++) {
+    const linkmatch = linkmatches[i]
     const snippetmatch = snippetmatches[i]
 
-    if (titlematch) {
-      let url = titlematch[1]
-      const title = decodehtmlentities(titlematch[2].trim())
-
-      if (url.includes("uddg=")) {
-        const urlmatch = url.match(/uddg=([^&]+)/)
-        if (urlmatch) {
-          url = decodeURIComponent(urlmatch[1])
-        }
-      }
+    if (linkmatch) {
+      const url = linkmatch[1] || linkmatch[3]
+      const rawtitle = linkmatch[2] || linkmatch[4]
+      const title = decodehtmlentities(rawtitle?.trim() || "")
 
       let snippet = ""
       if (snippetmatch) {
