@@ -12,15 +12,14 @@ interface OutlineResult {
 }
 
 export async function performwebsearch(query: string): Promise<{ query: string; resultCount: number; results: SearchResult[] }> {
-  const searchurl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`
+  const searchurl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
 
   const response = await fetch(searchurl, {
-    method: "POST",
+    method: "GET",
     headers: {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
       "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
       "Accept-Language": "en-US,en;q=0.9",
-      "Accept-Encoding": "gzip, deflate, br",
       "Cache-Control": "no-cache",
       "Pragma": "no-cache",
       "Sec-Ch-Ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
@@ -39,7 +38,7 @@ export async function performwebsearch(query: string): Promise<{ query: string; 
   }
 
   const html = await response.text()
-  const results = parseliteresults(html)
+  const results = parsesearchresults(html)
 
   return {
     query,
@@ -48,22 +47,22 @@ export async function performwebsearch(query: string): Promise<{ query: string; 
   }
 }
 
-function parseliteresults(html: string): SearchResult[] {
+function parsesearchresults(html: string): SearchResult[] {
   const results: SearchResult[] = []
 
-  const linkregex = /<a[^>]+rel="nofollow"[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/gi
-  const snippetregex = /<td[^>]*class="result-snippet"[^>]*>([^<]*(?:<[^>]+>[^<]*)*)<\/td>/gi
+  const resultregex = /<a[^>]+class="result__a"[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>/gi
+  const snippetregex = /<a[^>]+class="result__snippet"[^>]*>([^<]*(?:<[^>]+>[^<]*)*)<\/a>/gi
 
-  const linkmatches = [...html.matchAll(linkregex)]
+  const titlematches = [...html.matchAll(resultregex)]
   const snippetmatches = [...html.matchAll(snippetregex)]
 
-  for (let i = 0; i < Math.min(linkmatches.length, 6); i++) {
-    const linkmatch = linkmatches[i]
+  for (let i = 0; i < Math.min(titlematches.length, 6); i++) {
+    const titlematch = titlematches[i]
     const snippetmatch = snippetmatches[i]
 
-    if (linkmatch) {
-      let url = linkmatch[1]
-      const title = decodehtmlentities(linkmatch[2].trim())
+    if (titlematch) {
+      let url = titlematch[1]
+      const title = decodehtmlentities(titlematch[2].trim())
 
       if (url.includes("uddg=")) {
         const urlmatch = url.match(/uddg=([^&]+)/)
@@ -81,20 +80,6 @@ function parseliteresults(html: string): SearchResult[] {
 
       if (title && url && !url.includes("duckduckgo.com")) {
         results.push({ title, snippet, url })
-      }
-    }
-  }
-
-  if (results.length === 0) {
-    const altlinkregex = /<a[^>]*href="(https?:\/\/[^"]*)"[^>]*>([^<]+)<\/a>/gi
-    const altmatches = [...html.matchAll(altlinkregex)]
-
-    for (const match of altmatches.slice(0, 6)) {
-      const url = match[1]
-      const title = decodehtmlentities(match[2].trim())
-
-      if (title && url && !url.includes("duckduckgo.com") && title.length > 5) {
-        results.push({ title, snippet: "", url })
       }
     }
   }
