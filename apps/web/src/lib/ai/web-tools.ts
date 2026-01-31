@@ -12,67 +12,84 @@ interface OutlineResult {
 }
 
 export async function performwebsearch(query: string): Promise<{ query: string; resultCount: number; results: SearchResult[] }> {
-  const searchurl = `https://lite.duckduckgo.com/lite/?q=${encodeURIComponent(query)}`
+  try {
+    const body = new URLSearchParams({
+      q: query,
+      categories: "",
+      language: "en-US",
+      time_range: "",
+      safesearch: "0",
+      theme: "simple",
+    })
 
-  const response = await fetch(searchurl, {
-    method: "GET",
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-      "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-      "Accept-Language": "en-US,en;q=0.9",
-      "Cache-Control": "no-cache",
-      "Pragma": "no-cache",
-      "Sec-Ch-Ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
-      "Sec-Ch-Ua-Mobile": "?0",
-      "Sec-Ch-Ua-Platform": '"Windows"',
-      "Sec-Fetch-Dest": "document",
-      "Sec-Fetch-Mode": "navigate",
-      "Sec-Fetch-Site": "none",
-      "Sec-Fetch-User": "?1",
-      "Upgrade-Insecure-Requests": "1",
-    },
-  })
+    const response = await fetch("https://www.gruble.de/search", {
+      method: "POST",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36 Edg/144.0.0.0",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cache-Control": "max-age=0",
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Origin": "https://www.gruble.de",
+        "Referer": "https://www.gruble.de/",
+        "Sec-Ch-Ua": '"Not(A:Brand";v="8", "Chromium";v="144", "Microsoft Edge";v="144"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "same-origin",
+        "Sec-Fetch-User": "?1",
+        "Upgrade-Insecure-Requests": "1",
+      },
+      body: body.toString(),
+      signal: AbortSignal.timeout(15000),
+    })
 
-  if (!response.ok) {
-    throw new Error(`Search failed: ${response.status}`)
-  }
+    if (!response.ok) {
+      throw new Error(`Search failed: ${response.status}`)
+    }
 
-  const html = await response.text()
-  const results = parseliteresults(html)
+    const html = await response.text()
+    const results = parsesearxnghtml(html)
 
-  return {
-    query,
-    resultCount: results.length,
-    results: results.slice(0, 6),
+    return {
+      query,
+      resultCount: results.length,
+      results: results.slice(0, 6),
+    }
+  } catch (error) {
+    console.error("[web_search] Error:", error)
+    throw new Error(`Web search failed: ${error instanceof Error ? error.message : "Unknown error"}`)
   }
 }
 
-function parseliteresults(html: string): SearchResult[] {
+function parsesearxnghtml(html: string): SearchResult[] {
   const results: SearchResult[] = []
+  
+  const articleregex = /<article class="result[^"]*">([\s\S]*?)<\/article>/gi
+  const articles = [...html.matchAll(articleregex)]
 
-  const linkregex = /<a[^>]+class="result-link"[^>]*href="([^"]*)"[^>]*>([^<]*)<\/a>|<a[^>]+href="([^"]*)"[^>]*class="result-link"[^>]*>([^<]*)<\/a>/gi
-  const snippetregex = /<td[^>]*class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi
+  for (const article of articles) {
+    const articlehtml = article[1]
+    
+    const urlmatch = articlehtml.match(/<a href="([^"]+)"[^>]*class="url_header"/)
+      || articlehtml.match(/<a[^>]*class="url_header"[^>]*href="([^"]+)"/)
+    
+    const titlematch = articlehtml.match(/<h3>\s*<a[^>]*>([^<]*(?:<span[^>]*>[^<]*<\/span>[^<]*)*)<\/a>\s*<\/h3>/)
+    
+    const snippetmatch = articlehtml.match(/<p class="content">([\s\S]*?)<\/p>/)
 
-  const linkmatches = [...html.matchAll(linkregex)]
-  const snippetmatches = [...html.matchAll(snippetregex)]
-
-  for (let i = 0; i < Math.min(linkmatches.length, 10); i++) {
-    const linkmatch = linkmatches[i]
-    const snippetmatch = snippetmatches[i]
-
-    if (linkmatch) {
-      const url = linkmatch[1] || linkmatch[3]
-      const rawtitle = linkmatch[2] || linkmatch[4]
-      const title = decodehtmlentities(rawtitle?.trim() || "")
-
+    if (urlmatch && titlematch) {
+      const url = urlmatch[1]
+      const rawtitle = titlematch[1].replace(/<[^>]+>/g, "").trim()
+      const title = decodehtmlentities(rawtitle)
+      
       let snippet = ""
       if (snippetmatch) {
-        snippet = decodehtmlentities(
-          snippetmatch[1].replace(/<[^>]+>/g, "").trim()
-        )
+        snippet = decodehtmlentities(snippetmatch[1].replace(/<[^>]+>/g, "").trim())
       }
 
-      if (title && url && !url.includes("duckduckgo.com")) {
+      if (url && title && !url.includes("gruble.de")) {
         results.push({ title, snippet, url })
       }
     }
