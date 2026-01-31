@@ -1,6 +1,7 @@
 import { getTool, type ToolCall, type ToolDefinition } from "./tools"
 import { db, type Task } from "../db/kv"
 import { generateId } from "../utils"
+import { performwebsearch, performweboutline } from "./web-tools"
 
 interface ExecutionResult {
   success: boolean
@@ -235,37 +236,19 @@ async function executeToolInternal(
     }
 
     case "web_search": {
-      console.log(`[Tool] web_search:`, { query: args.query })
+      const query = args.query as string
+      console.log(`[Tool] web_search:`, { query })
 
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-      const response = await fetch(`${baseUrl}/api/tools/search`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: args.query }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Search failed: ${response.status}`)
-      }
-
-      return await response.json()
+      const result = await performwebsearch(query)
+      return result
     }
 
     case "web_outline": {
-      console.log(`[Tool] web_outline:`, { url: args.url })
+      const url = args.url as string
+      console.log(`[Tool] web_outline:`, { url })
 
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"
-      const response = await fetch(`${baseUrl}/api/tools/outline`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: args.url }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Outline failed: ${response.status}`)
-      }
-
-      return await response.json()
+      const result = await performweboutline(url)
+      return result
     }
 
     case "canvas_write":
