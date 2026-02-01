@@ -187,21 +187,21 @@ export function ChatInput({
     >
       <div
         className={cn(
-          "absolute -inset-1 rounded-2xl blur-xl transition-all duration-700 ease-out pointer-events-none",
-          "bg-gradient-to-r from-violet-600/60 via-fuchsia-500/60 to-pink-500/60",
-          focused && !isDisabled ? "opacity-50 scale-100" : "opacity-0 scale-95"
+          "absolute -inset-0.5 rounded-xl blur-lg transition-all duration-700 ease-out pointer-events-none",
+          "bg-gradient-to-r from-white/30 via-neutral-400/30 to-white/30",
+          focused && !isDisabled ? "opacity-25 scale-100" : "opacity-0 scale-95"
         )}
       />
 
       {isDragging && (
         <div className="absolute inset-0 z-50 rounded-xl overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/5 to-transparent backdrop-blur-sm" />
-          <div className="absolute inset-0 border border-violet-500/40 rounded-xl" />
-          <div className="absolute inset-[1px] border border-violet-400/20 rounded-xl" />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-neutral-500/5 to-transparent backdrop-blur-sm" />
+          <div className="absolute inset-0 border border-white/20 rounded-xl" />
+          <div className="absolute inset-[1px] border border-white/10 rounded-xl" />
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-white/[0.03] backdrop-blur border border-white/[0.08]">
-              <div className="p-2 rounded-lg bg-violet-500/20">
-                <Upload className="w-4 h-4 text-violet-400" />
+              <div className="p-2 rounded-lg bg-white/10">
+                <Upload className="w-4 h-4 text-white/70" />
               </div>
               <span className="text-sm font-medium text-white/70">Drop to attach</span>
             </div>
@@ -215,7 +215,7 @@ export function ChatInput({
           "bg-card/95 backdrop-blur-md",
           "border",
           focused && !isDisabled
-            ? "border-violet-500/60 shadow-lg shadow-violet-500/20"
+            ? "border-white/20 shadow-lg shadow-white/5"
             : "border-border/60",
           isDisabled && "opacity-60"
         )}

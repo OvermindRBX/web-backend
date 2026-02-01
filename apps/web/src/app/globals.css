@@ -142,32 +142,143 @@
   animation: ellipsis 1.5s infinite;
 }
 
-/* Premium grid background */
-.grid-bg {
-  background-size: 60px 60px;
-  background-image: linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
-                    linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLASSMORPHIC / ACRYLIC / MICA UTILITIES
+   Universal blur + transparency effects for premium dark UI
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Base glass effect - subtle */
+.glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* Static light glow that illuminates grid */
+/* Glass medium - more visible */
+.glass-md {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Glass strong - prominent frosted effect */
+.glass-lg {
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Acrylic - Windows 11 style with noise */
+.acrylic {
+  background: linear-gradient(
+    135deg,
+    rgba(20, 20, 25, 0.85) 0%,
+    rgba(30, 30, 35, 0.75) 50%,
+    rgba(20, 20, 25, 0.85) 100%
+  );
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Mica - subtle tinted glass */
+.mica {
+  background: linear-gradient(
+    180deg,
+    rgba(15, 15, 18, 0.95) 0%,
+    rgba(10, 10, 12, 0.98) 100%
+  );
+  backdrop-filter: blur(60px) saturate(150%);
+  -webkit-backdrop-filter: blur(60px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+/* Dark glass - for floating elements */
+.glass-dark {
+  background: linear-gradient(
+    135deg,
+    rgba(15, 15, 18, 0.9) 0%,
+    rgba(20, 20, 24, 0.85) 100%
+  );
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Premium dark floating glass - for navbars */
+.glass-float {
+  background: linear-gradient(
+    180deg,
+    rgba(25, 25, 30, 0.92) 0%,
+    rgba(18, 18, 22, 0.95) 100%
+  );
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 
+    0 4px 24px rgba(0, 0, 0, 0.4),
+    0 12px 48px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Card glass */
+.glass-card {
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.3s ease;
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Input glass */
+.glass-input {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.2s ease;
+}
+
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.05);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GRID & GLOW BACKGROUNDS
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.grid-bg {
+  background-size: 60px 60px;
+  background-image: 
+    linear-gradient(to right, rgba(255,255,255,0.02) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255,255,255,0.02) 1px, transparent 1px);
+}
+
 .grid-glow {
-  background: radial-gradient(ellipse 800px 500px at 50% -100px, rgba(139,92,246,0.12), transparent 70%);
+  background: radial-gradient(ellipse 800px 500px at 50% -100px, rgba(255,255,255,0.04), transparent 70%);
 }
 
 .grid-glow-center {
-  background: radial-gradient(ellipse 600px 400px at 50% 30%, rgba(139,92,246,0.08), transparent 70%);
+  background: radial-gradient(ellipse 600px 400px at 50% 30%, rgba(255,255,255,0.03), transparent 70%);
 }
 
-/* Glassmorphic card */
-.glass-card {
-  @apply bg-white/[0.03] backdrop-blur-xl border border-white/[0.06] shadow-2xl;
-}
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-.glass-card-hover:hover {
-  @apply bg-white/[0.05] border-white/[0.1];
-}
-
-/* Smooth float animation */
 @keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-8px); }
@@ -177,38 +288,20 @@
   animation: float 6s ease-in-out infinite;
 }
 
-/* Subtle scale on hover */
 .hover-lift {
-  @apply transition-all duration-300;
+  transition: all 0.3s ease;
 }
 
 .hover-lift:hover {
-  @apply -translate-y-0.5 shadow-xl;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
-/* Glow effect for buttons */
-.glow-violet {
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-.hover-glow:hover {
-  box-shadow: 0 0 30px rgba(139, 92, 246, 0.4);
+.animate-fade-in {
+  animation: fade-in 0.5s ease-out forwards;
 }
-
-/* Gradient border animation */
-@keyframes gradient-rotate {
-  0% { --border-angle: 0deg; }
-  100% { --border-angle: 360deg; }
-}
-
-.gradient-border {
-  --border-angle: 0deg;
-  background: linear-gradient(var(--border-angle), rgba(139,92,246,0.5), rgba(236,72,153,0.5), rgba(139,92,246,0.5));
-  animation: gradient-rotate 4s linear infinite;
-}
-
-/* Focus glow for inputs */
-.input-glow:focus {
-  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
-}
-

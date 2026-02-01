@@ -8,9 +8,20 @@ export interface ModelConfig {
   requiredTier: Tier
   description?: string
   icon?: string
+  actualModelId?: string
 }
 
 export const MODELS: Record<string, ModelConfig> = {
+  "base-model": {
+    id: "base-model",
+    name: "Base Model",
+    provider: "chat.gpt-chatbot.ru",
+    creditCost: 1,
+    requiredTier: "free",
+    description: "Reliable all-rounder",
+    icon: "🔹",
+    actualModelId: "mistralai/mistral-large-3-675b-instruct-2512",
+  },
   "gpt-4.1-mini": {
     id: "gpt-4.1-mini",
     name: "GPT-4.1 Mini",

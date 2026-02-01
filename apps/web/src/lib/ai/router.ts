@@ -2,6 +2,7 @@ import { AI_CONFIG } from "../config"
 import { buildSystemPrompt } from "./prompt"
 import { getPreset, type Preset } from "./presets"
 import { type Tier } from "../db/kv"
+import { getModel } from "../billing/models"
 
 export interface ChatMessage {
   role: "system" | "user" | "assistant"
@@ -46,7 +47,9 @@ export async function chat(request: ChatRequest): Promise<ChatResponse> {
   const presetConfig = getPreset(preset)
   
   const provider = request.provider || presetConfig.provider || AI_CONFIG.defaultProvider
-  const model = request.model || presetConfig.model || AI_CONFIG.defaultModel
+  const requestedModel = request.model || presetConfig.model || AI_CONFIG.defaultModel
+  const modelConfig = getModel(requestedModel)
+  const model = modelConfig?.actualModelId || requestedModel
   
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },
@@ -104,7 +107,9 @@ export async function* streamChat(request: ChatRequest): AsyncGenerator<StreamCh
   const presetConfig = getPreset(preset)
   
   const provider = request.provider || presetConfig.provider || AI_CONFIG.defaultProvider
-  const model = request.model || presetConfig.model || AI_CONFIG.defaultModel
+  const requestedModel = request.model || presetConfig.model || AI_CONFIG.defaultModel
+  const modelConfig = getModel(requestedModel)
+  const model = modelConfig?.actualModelId || requestedModel
   
   const messages: ChatMessage[] = [
     { role: "system", content: systemPrompt },

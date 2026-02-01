@@ -364,26 +364,9 @@ function ToolCallCard({ tool }: { tool: ToolCall }) {
           tool.status === "success" && "border-emerald-500/20",
           tool.status === "error" && "border-red-500/20"
         )}
-        style={isexecuting ? {
-          background: `
-            linear-gradient(#1a1a1f, #1a1a1f) padding-box,
-            conic-gradient(
-              from var(--border-angle),
-              transparent 0%,
-              rgba(255, 255, 255, 0.15) 10%,
-              rgba(255, 255, 255, 0.4) 25%,
-              rgba(255, 255, 255, 0.7) 50%,
-              rgba(255, 255, 255, 0.4) 75%,
-              rgba(255, 255, 255, 0.15) 90%,
-              transparent 100%
-            ) border-box
-          `,
-          border: '2px solid transparent',
-          willChange: 'background',
-          transform: 'translateZ(0)',
-        } : {
-          background: '#1a1a1f',
-          border: '1px solid rgba(255,255,255,0.06)',
+        style={{
+          background: 'hsl(240 6% 8%)',
+          border: isexecuting ? '1px solid hsl(240 4% 16%)' : '1px solid hsl(240 4% 12%)',
         }}
       >
         <div className="flex items-center justify-between">
@@ -441,7 +424,7 @@ function ToolCallCard({ tool }: { tool: ToolCall }) {
                   return (
                     <div key={key} className="text-xs">
                       <span className="text-white/40 font-medium">{key}:</span>
-                      <pre className="mt-1 p-2.5 rounded-lg bg-black/30 text-white/70 font-mono overflow-x-auto max-h-64 overflow-y-auto scrollbar-thin border border-white/[0.04]">
+                      <pre className="mt-1 p-2.5 rounded-lg bg-black/50 text-white/70 font-mono overflow-x-auto max-h-64 overflow-y-auto scrollbar-thin border border-white/[0.06]">
                         {cleanValue}
                       </pre>
                     </div>
@@ -464,7 +447,7 @@ function ToolCallCard({ tool }: { tool: ToolCall }) {
                   }}
                 >
                   {showRaw && (
-                    <pre className="p-2.5 rounded-lg bg-black/40 border border-white/[0.06] text-white/60 font-mono text-xs overflow-x-auto max-h-[500px] overflow-y-auto scrollbar-thin">
+                    <pre className="p-2.5 rounded-lg bg-black/60 border border-white/[0.08] text-white/60 font-mono text-xs overflow-x-auto max-h-[500px] overflow-y-auto scrollbar-thin">
                       {JSON.stringify({ action: tool.name, args: tool.args }, null, 2)}
                     </pre>
                   )}

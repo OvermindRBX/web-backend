@@ -1,0 +1,14 @@
+[package]
+name = "overmind/plugin"
+authors = ["qborder", "snowzy", "Overmind"]
+description = "AI-powered development assistant for Roblox Studio"
+registry = "https://github.com/UpliftGames/wally-index"
+license = "MIT"
+version = "0.1.0"
+realm = "shared"
+private = true
+
+[dependencies]
+Fusion = "dervexhero/fusion-03-dev@0.3.0-dev.1"
+Signal = "dervexhero/advancedsignal@1.0.1"
+Promise = "lukadev-0/typed-promise@4.0.2"
