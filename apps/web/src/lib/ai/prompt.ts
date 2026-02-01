@@ -196,7 +196,7 @@ function generateToolDocs(userTier?: Tier): string {
   return docs
 }
 
-function generateTierContext(userTier: Tier, userInfo?: { displayName?: string; creditsUsed?: number; creditsTotal?: number }): string {
+function generateTierContext(userTier: Tier, userInfo?: { displayName?: string; creditsUsed?: number; creditsTotal?: number; customInstructions?: string; nickname?: string; occupation?: string; aboutYou?: string }): string {
   const lockedTools = getLockedToolsForTier(userTier)
   const lockedPresets = getLockedPresetsForTier(userTier)
   const lockedModels = getLockedModels(userTier)
@@ -205,8 +205,13 @@ function generateTierContext(userTier: Tier, userInfo?: { displayName?: string; 
   let context = "## USER CONTEXT\n\n"
   
   context += `**Current User Tier:** ${userTier.toUpperCase()}\n`
-  if (userInfo?.displayName) {
+  if (userInfo?.nickname) {
+    context += `**Nickname:** ${userInfo.nickname}\n`
+  } else if (userInfo?.displayName) {
     context += `**Display Name:** ${userInfo.displayName}\n`
+  }
+  if (userInfo?.occupation) {
+    context += `**Occupation:** ${userInfo.occupation}\n`
   }
   if (userInfo?.creditsTotal !== undefined) {
     const available = (userInfo.creditsTotal || 0) - (userInfo.creditsUsed || 0)
@@ -237,11 +242,31 @@ function generateTierContext(userTier: Tier, userInfo?: { displayName?: string; 
   return context
 }
 
+function generatePersonalizationContext(userInfo?: { customInstructions?: string; nickname?: string; occupation?: string; aboutYou?: string }): string {
+  if (!userInfo) return ""
+  
+  const hasPersonalization = userInfo.customInstructions || userInfo.aboutYou
+  if (!hasPersonalization) return ""
+  
+  let context = "## PERSONALIZATION (User Preferences)\n\n"
+  context += "The user has set the following preferences. Respect these at all times:\n\n"
+  
+  if (userInfo.aboutYou) {
+    context += `**About the user:** ${userInfo.aboutYou}\n\n`
+  }
+  
+  if (userInfo.customInstructions) {
+    context += `**Custom Instructions:**\n${userInfo.customInstructions}\n\n`
+  }
+  
+  return context
+}
+
 export interface BuildPromptOptions {
   preset: Preset
   projectContext?: string
   userTier?: Tier
-  userInfo?: { displayName?: string; creditsUsed?: number; creditsTotal?: number }
+  userInfo?: { displayName?: string; creditsUsed?: number; creditsTotal?: number; customInstructions?: string; nickname?: string; occupation?: string; aboutYou?: string }
 }
 
 export type ModesConfig = {
@@ -328,7 +353,7 @@ export function buildSystemPrompt(
   preset: Preset, 
   projectContext?: string, 
   userTier?: Tier,
-  userInfo?: { displayName?: string; creditsUsed?: number; creditsTotal?: number },
+  userInfo?: { displayName?: string; creditsUsed?: number; creditsTotal?: number; customInstructions?: string; nickname?: string; occupation?: string; aboutYou?: string },
   featureFlags?: FeatureFlags,
   modes?: ModesConfig
 ): string {
@@ -336,6 +361,7 @@ export function buildSystemPrompt(
   const presetConfig = getPreset(preset)
   const toolDocs = generateToolDocs(userTier)
   const tierContext = userTier ? generateTierContext(userTier, userInfo) : ""
+  const personalizationContext = generatePersonalizationContext(userInfo)
   const featureFlagsContext = generateFeatureFlagsContext(featureFlags)
   
   let systemPrompt = ""
@@ -370,6 +396,10 @@ export function buildSystemPrompt(
   
   if (tierContext) {
     systemPrompt += "\n\n" + tierContext
+  }
+  
+  if (personalizationContext) {
+    systemPrompt += "\n\n" + personalizationContext
   }
   
   if (projectContext) {

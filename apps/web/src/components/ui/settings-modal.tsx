@@ -18,7 +18,8 @@ import {
   Copy,
   Check,
   ChevronDown,
-  Crown
+  Crown,
+  Sparkles
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "./button"
@@ -47,7 +48,7 @@ interface Provider {
   modelCount: number
 }
 
-type Tab = "account" | "security" | "api-keys" | "ai"
+type Tab = "account" | "security" | "api-keys" | "ai" | "personalization"
 type Tier = "free" | "pro" | "studio"
 
 function formatDate(date: Date): string {
@@ -102,6 +103,15 @@ export function SettingsModal() {
   const [showProviderDropdown, setShowProviderDropdown] = useState(false)
   const [userTier, setUserTier] = useState<Tier>("free")
 
+  const [customInstructions, setCustomInstructions] = useState("")
+  const [nickname, setNickname] = useState("")
+  const [occupation, setOccupation] = useState("")
+  const [aboutYou, setAboutYou] = useState("")
+  const [personalizationLoading, setPersonalizationLoading] = useState(true)
+  const [personalizationSaving, setPersonalizationSaving] = useState(false)
+  const [personalizationSuccess, setPersonalizationSuccess] = useState("")
+  const [personalizationError, setPersonalizationError] = useState("")
+
   const handleClose = useCallback(() => {
     setClosing(true)
     setTimeout(() => {
@@ -127,6 +137,7 @@ export function SettingsModal() {
       fetchKeys()
       fetchProviders()
       fetchTier()
+      fetchPersonalization()
     }
   }, [isOpen])
 
@@ -335,8 +346,48 @@ export function SettingsModal() {
     }
   }
 
+  async function fetchPersonalization() {
+    setPersonalizationLoading(true)
+    try {
+      const res = await fetch("/api/user")
+      const data = await res.json()
+      if (data.user) {
+        setCustomInstructions(data.user.customInstructions || "")
+        setNickname(data.user.nickname || "")
+        setOccupation(data.user.occupation || "")
+        setAboutYou(data.user.aboutYou || "")
+      }
+    } catch {
+      setPersonalizationError("Failed to load personalization")
+    } finally {
+      setPersonalizationLoading(false)
+    }
+  }
+
+  async function handleSavePersonalization() {
+    setPersonalizationSaving(true)
+    setPersonalizationError("")
+    setPersonalizationSuccess("")
+    try {
+      const res = await fetch("/api/user", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ customInstructions, nickname, occupation, aboutYou }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setPersonalizationSuccess("Personalization saved")
+      setTimeout(() => setPersonalizationSuccess(""), 3000)
+    } catch (err) {
+      setPersonalizationError(err instanceof Error ? err.message : "Failed to save")
+    } finally {
+      setPersonalizationSaving(false)
+    }
+  }
+
   const tabs = [
     { id: "account" as Tab, label: "Account", icon: User },
+    { id: "personalization" as Tab, label: "Personalization", icon: Sparkles },
     { id: "security" as Tab, label: "Security", icon: Lock },
     { id: "api-keys" as Tab, label: "API Keys", icon: Key },
     { id: "ai" as Tab, label: "AI", icon: Brain, isPro: true },
@@ -755,6 +806,97 @@ export function SettingsModal() {
                           </>
                         ) : (
                           "Save Provider"
+                        )}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {activeTab === "personalization" && (
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium text-white mb-1">Personalization</h3>
+                    <p className="text-sm text-white/40">Customize how the AI responds to you</p>
+                  </div>
+                  
+                  {personalizationError && (
+                    <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4" />
+                      {personalizationError}
+                    </div>
+                  )}
+                  {personalizationSuccess && (
+                    <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm flex items-center gap-2">
+                      <CheckCircle className="w-4 h-4" />
+                      {personalizationSuccess}
+                    </div>
+                  )}
+                  
+                  {personalizationLoading ? (
+                    <div className="space-y-4">
+                      <Skeleton className="h-32 w-full rounded-lg" />
+                      <Skeleton className="h-10 w-full rounded-lg" />
+                      <Skeleton className="h-10 w-full rounded-lg" />
+                    </div>
+                  ) : (
+                    <div className="space-y-5">
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-white/70">Custom Instructions</label>
+                        <p className="text-xs text-white/30">Tell the AI about your preferences, coding style, or specific behaviors you want</p>
+                        <textarea
+                          value={customInstructions}
+                          onChange={(e) => setCustomInstructions(e.target.value)}
+                          placeholder="E.g., Always use TypeScript. Prefer functional components. Keep responses concise..."
+                          rows={5}
+                          className="w-full rounded-lg bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/30 p-3 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-white/20"
+                        />
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-white/70">Nickname</label>
+                          <Input
+                            value={nickname}
+                            onChange={(e) => setNickname(e.target.value)}
+                            placeholder="What should I call you?"
+                            className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/30"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-white/70">Occupation</label>
+                          <Input
+                            value={occupation}
+                            onChange={(e) => setOccupation(e.target.value)}
+                            placeholder="Developer, Designer, Student..."
+                            className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-white/30"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label className="text-sm font-medium text-white/70">About You</label>
+                        <textarea
+                          value={aboutYou}
+                          onChange={(e) => setAboutYou(e.target.value)}
+                          placeholder="Tell me about yourself, your projects, or what you're working on..."
+                          rows={3}
+                          className="w-full rounded-lg bg-white/[0.04] border border-white/[0.08] text-white placeholder:text-white/30 p-3 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-white/20"
+                        />
+                      </div>
+                      
+                      <Button 
+                        onClick={handleSavePersonalization} 
+                        disabled={personalizationSaving}
+                        className="bg-white/10 hover:bg-white/[0.15] text-white border-0"
+                      >
+                        {personalizationSaving ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                            Saving...
+                          </>
+                        ) : (
+                          "Save Personalization"
                         )}
                       </Button>
                     </div>

@@ -1,7 +1,11 @@
-import { ServerScriptService, ServerStorage, ReplicatedStorage, Players, Workspace, StarterPlayer, StarterGui, StarterPack, Lighting, SoundService, Chat, Teams, ReplicatedFirst, CollectionService } from "@rbxts/services"
+import { ServerScriptService, ServerStorage, ReplicatedStorage, Players, Workspace, StarterPlayer, StarterGui, StarterPack, Lighting, SoundService, Chat, Teams, ReplicatedFirst, CollectionService, ChangeHistoryService } from "@rbxts/services"
 import { SignalAction } from "./types"
 
 const scriptEditor = game.GetService("ScriptEditorService") as ScriptEditorService
+
+function setWaypoint(name: string): void {
+	ChangeHistoryService.SetWaypoint(`Overmind: ${name}`)
+}
 
 type ScriptKind = "server" | "client" | "module"
 
@@ -214,6 +218,8 @@ function handleCreateScript(data: { path: string; content: string }): void {
 		warn("[Overmind] Invalid create_script data")
 		return
 	}
+	
+	setWaypoint("Create Script")
 
 	const pathParts = string.split(path, "/")
 	const fileName = pathParts[pathParts.size() - 1]
@@ -256,6 +262,8 @@ function handleUpdateScript(data: { path: string; content: string }): void {
 		warn("[Overmind] Invalid update_script data")
 		return
 	}
+	
+	setWaypoint("Update Script")
 
 	const pathParts = string.split(path, "/")
 	const fileName = pathParts[pathParts.size() - 1]
@@ -299,6 +307,8 @@ function handleDeleteScript(data: { path: string }): void {
 		warn("[Overmind] Invalid delete_script data")
 		return
 	}
+	
+	setWaypoint("Delete Script")
 
 	const pathParts = string.split(path, "/")
 	const fileName = pathParts[pathParts.size() - 1]
@@ -342,6 +352,8 @@ function handleCreateObject(data: { className: string; parent: string; name?: st
 		warn("[Overmind] Invalid create_object data")
 		return
 	}
+	
+	setWaypoint("Create Object")
 
 	try {
 		const parentInstance = resolveParentInstance(parent)
@@ -368,6 +380,8 @@ function handleUpdateObject(data: { query: string; className?: string; propertie
 		warn("[Overmind] Invalid update_object data")
 		return
 	}
+	
+	setWaypoint("Update Object")
 
 	const objects = findObjectByQuery(query, className)
 	if (objects.size() === 0) {
@@ -400,6 +414,8 @@ function handleDeleteObject(data: { query: string; className?: string; recursive
 		warn("[Overmind] Invalid delete_object data")
 		return
 	}
+	
+	setWaypoint("Delete Object")
 
 	const objects = findObjectByQuery(query, className)
 	if (objects.size() === 0) {
@@ -433,6 +449,8 @@ function handleMoveObject(data: { query: string; newParent: string; newIndex?: n
 		warn("[Overmind] Invalid move_object data")
 		return
 	}
+	
+	setWaypoint("Move Object")
 
 	const objects = findObjectByQuery(query)
 	if (objects.size() === 0) {

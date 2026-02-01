@@ -54,24 +54,37 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
     
-    const { projectId, name } = await request.json()
+    const { projectId, name, messages, parentChatId, branchIndex } = await request.json()
     
     if (!projectId) {
       return NextResponse.json({ error: "Project ID is required" }, { status: 400 })
     }
+    
+    const chatMessages: ChatMessage[] = messages?.map((m: { role: string; content: string; reasoning?: string }, i: number) => ({
+      id: generateId(),
+      chatId: "",
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      reasoning: m.reasoning,
+      createdAt: Date.now() + i,
+    })) || []
     
     const chat: Chat = {
       id: generateId(),
       projectId,
       userId: auth.userId,
       name: name || "New Chat",
-      messages: [],
-      messageCount: 0,
-      manuallyRenamed: false,
+      messages: chatMessages.map(m => ({ ...m, chatId: "" })),
+      messageCount: chatMessages.length,
+      manuallyRenamed: !!parentChatId,
       pinned: false,
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      parentChatId,
+      branchIndex,
     }
+    
+    chat.messages = chat.messages.map(m => ({ ...m, chatId: chat.id }))
     
     await db.createChat(chat)
     

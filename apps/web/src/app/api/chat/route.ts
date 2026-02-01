@@ -156,12 +156,16 @@ export async function POST(request: NextRequest) {
         displayName: user.displayName,
         creditsUsed: user.creditsUsedToday,
         creditsTotal: getDailyCredits(userTier),
+        customInstructions: user.customInstructions,
+        nickname: user.nickname,
+        occupation: user.occupation,
+        aboutYou: user.aboutYou,
       } : undefined
       
       const readable = new ReadableStream({
         async start(controller) {
           try {
-            const MAX_ITERATIONS = 5
+            const MAX_ITERATIONS = 100
             let currentMessages = [...messages]
             let iteration = 0
             
@@ -286,6 +290,10 @@ export async function POST(request: NextRequest) {
       displayName: user.displayName,
       creditsUsed: user.creditsUsedToday,
       creditsTotal: getDailyCredits(userTier),
+      customInstructions: user.customInstructions,
+      nickname: user.nickname,
+      occupation: user.occupation,
+      aboutYou: user.aboutYou,
     } : undefined
     
 const response = await chat({ messages, preset, projectContext, provider: effectiveProvider, model, userTier, userInfo: userInfoNonStream, featureFlags: { webSearchEnabled, canvasEnabled, mentorEnabled }, modes: { thinkingMode, highTemperature, creativeMode, debugMode } })

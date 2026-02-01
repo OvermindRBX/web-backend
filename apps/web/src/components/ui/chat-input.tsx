@@ -3,7 +3,7 @@
 import * as React from "react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
-import { Send, Loader2, Paperclip, X, FileText, Image as ImageIcon } from "lucide-react"
+import { Send, Loader2, Paperclip, X, FileText, Image as ImageIcon, Upload, Square } from "lucide-react"
 
 export interface UploadedFile {
   id: string
@@ -18,6 +18,7 @@ interface ChatInputProps {
   value: string
   onChange: (value: string) => void
   onSend: () => void
+  onStop?: () => void
   placeholder?: string
   disabled?: boolean
   loading?: boolean
@@ -27,22 +28,31 @@ interface ChatInputProps {
   settingsButton?: React.ReactNode
 }
 
-const ACCEPTED_FILE_TYPES = {
-  images: ["image/jpeg", "image/png", "image/webp", "image/svg+xml", "image/gif"],
-  text: ["text/plain", "text/javascript", "text/css", "text/html", "text/markdown", "application/json"],
-  code: [
-    "application/javascript", "application/typescript", "application/x-python",
-    "application/x-typescript", "text/x-python", "text/x-typescript"
-  ],
-  documents: ["application/pdf"]
-}
+const TEXT_EXTENSIONS = [
+  ".txt", ".md", ".json", ".yaml", ".yml", ".xml", ".csv", ".log",
+  ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs",
+  ".py", ".rb", ".php", ".java", ".c", ".cpp", ".h", ".hpp", ".cs", ".go", ".rs", ".swift", ".kt",
+  ".lua", ".luau",
+  ".html", ".htm", ".css", ".scss", ".sass", ".less",
+  ".sql", ".sh", ".bash", ".zsh", ".ps1", ".bat", ".cmd",
+  ".env", ".gitignore", ".dockerignore", ".editorconfig",
+  ".toml", ".ini", ".cfg", ".conf"
+]
 
-const ALL_ACCEPTED = [...ACCEPTED_FILE_TYPES.images, ...ACCEPTED_FILE_TYPES.text, ...ACCEPTED_FILE_TYPES.code, ...ACCEPTED_FILE_TYPES.documents]
+const BLOCKED_EXTENSIONS = [".exe", ".msi", ".dll", ".so", ".dylib", ".app", ".dmg", ".pkg", ".deb", ".rpm"]
+
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/svg+xml", "image/gif"]
+
+function isBlockedFile(file: File): boolean {
+  const ext = "." + file.name.split(".").pop()?.toLowerCase()
+  return BLOCKED_EXTENSIONS.includes(ext)
+}
 
 export function ChatInput({
   value,
   onChange,
   onSend,
+  onStop,
   placeholder = "Type a message...",
   disabled = false,
   loading = false,
@@ -54,6 +64,8 @@ export function ChatInput({
   const textareaRef = React.useRef<HTMLTextAreaElement>(null)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
   const [focused, setFocused] = React.useState(false)
+  const [isDragging, setIsDragging] = React.useState(false)
+  const dragCounter = React.useRef(0)
 
   React.useLayoutEffect(() => {
     const el = textareaRef.current
@@ -71,13 +83,17 @@ export function ChatInput({
     }
   }
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFiles = e.target.files
-    if (!selectedFiles || !onFilesChange) return
+  const processFiles = async (fileList: FileList | File[]) => {
+    if (!onFilesChange) return
 
     const newFiles: UploadedFile[] = []
 
-    for (const file of Array.from(selectedFiles)) {
+    for (const file of Array.from(fileList)) {
+      if (isBlockedFile(file)) {
+        console.warn(`Blocked file type: ${file.name}`)
+        continue
+      }
+
       const reader = new FileReader()
       
       const fileData = await new Promise<string>((resolve) => {
@@ -93,15 +109,58 @@ export function ChatInput({
       newFiles.push({
         id: crypto.randomUUID(),
         name: file.name,
-        type: file.type,
+        type: file.type || "text/plain",
         size: file.size,
         data: fileData,
         preview: file.type.startsWith("image/") ? fileData : undefined
       })
     }
 
-    onFilesChange([...files, ...newFiles])
+    if (newFiles.length > 0) {
+      onFilesChange([...files, ...newFiles])
+    }
+  }
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = e.target.files
+    if (!selectedFiles) return
+    await processFiles(selectedFiles)
     e.target.value = ""
+  }
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter.current++
+    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
+      setIsDragging(true)
+    }
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    dragCounter.current--
+    if (dragCounter.current === 0) {
+      setIsDragging(false)
+    }
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+  }
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setIsDragging(false)
+    dragCounter.current = 0
+
+    const droppedFiles = e.dataTransfer.files
+    if (droppedFiles && droppedFiles.length > 0) {
+      await processFiles(droppedFiles)
+    }
   }
 
   const removeFile = (id: string) => {
@@ -119,7 +178,13 @@ export function ChatInput({
   }
 
   return (
-    <div className={cn("relative", className)}>
+    <div 
+      className={cn("relative", className)}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
+    >
       <div
         className={cn(
           "absolute -inset-1 rounded-2xl blur-xl transition-all duration-700 ease-out pointer-events-none",
@@ -127,6 +192,22 @@ export function ChatInput({
           focused && !isDisabled ? "opacity-50 scale-100" : "opacity-0 scale-95"
         )}
       />
+
+      {isDragging && (
+        <div className="absolute inset-0 z-50 rounded-xl overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 via-fuchsia-500/5 to-transparent backdrop-blur-sm" />
+          <div className="absolute inset-0 border border-violet-500/40 rounded-xl" />
+          <div className="absolute inset-[1px] border border-violet-400/20 rounded-xl" />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-white/[0.03] backdrop-blur border border-white/[0.08]">
+              <div className="p-2 rounded-lg bg-violet-500/20">
+                <Upload className="w-4 h-4 text-violet-400" />
+              </div>
+              <span className="text-sm font-medium text-white/70">Drop to attach</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div
         className={cn(
@@ -191,7 +272,7 @@ export function ChatInput({
           ref={fileInputRef}
           type="file"
           multiple
-          accept=".txt,.js,.ts,.tsx,.jsx,.py,.css,.html,.md,.json,.pdf,.jpeg,.jpg,.png,.webp,.svg,.gif"
+          accept={[...TEXT_EXTENSIONS, ...IMAGE_TYPES.map(t => t.replace("image/", "."))].join(",")}
           onChange={handleFileSelect}
           className="hidden"
         />
@@ -221,22 +302,28 @@ export function ChatInput({
             </div>
 
             <Button
-              type="submit"
+              type="button"
               size="icon"
-              disabled={!canSend}
+              disabled={!canSend && !loading}
               onClick={(e) => {
                 e.preventDefault()
-                if (canSend) onSend()
+                if (loading && onStop) {
+                  onStop()
+                } else if (canSend) {
+                  onSend()
+                }
               }}
               className={cn(
                 "h-8 w-8 rounded-lg transition-all",
-                canSend 
-                  ? "bg-white text-neutral-900 hover:bg-neutral-200" 
-                  : "bg-white/10 text-muted-foreground cursor-not-allowed"
+                loading
+                  ? "bg-red-500/20 text-red-400 hover:bg-red-500/30"
+                  : canSend 
+                    ? "bg-white text-neutral-900 hover:bg-neutral-200" 
+                    : "bg-white/10 text-muted-foreground cursor-not-allowed"
               )}
             >
               {loading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Square className="w-4 h-4" />
               ) : (
                 <Send className="w-4 h-4" />
               )}

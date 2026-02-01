@@ -22,6 +22,10 @@ export interface User {
   minuteStartTime: number
   dismissedTierWarning: boolean
   preferredProvider?: string
+  customInstructions?: string
+  nickname?: string
+  occupation?: string
+  aboutYou?: string
 }
 
 export interface Session {
@@ -84,6 +88,8 @@ export interface Chat {
   pinned: boolean
   createdAt: number
   updatedAt: number
+  parentChatId?: string
+  branchIndex?: number
 }
 
 export interface Conversation {

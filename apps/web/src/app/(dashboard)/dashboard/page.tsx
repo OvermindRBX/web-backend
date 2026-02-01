@@ -45,7 +45,11 @@ import {
   ThumbsDown,
   Pin,
   PinOff,
-  Menu
+  Menu,
+  PanelLeftClose,
+  PanelLeft,
+  GitBranch,
+  Square
 } from "lucide-react"
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
 import { InputModal, ConfirmModal } from "@/components/ui/modal"
@@ -570,10 +574,12 @@ function ThinkingIndicator({ stage }: { stage: "reasoning" | "processing" | "con
 function MessageActionBar({ 
   content, 
   onRegenerate,
+  onBranch,
   isLatest = false
 }: { 
   content: string
   onRegenerate?: () => void
+  onBranch?: () => void
   isLatest?: boolean
 }) {
   const [copied, setCopied] = useState(false)
@@ -607,6 +613,16 @@ function MessageActionBar({
       >
         <RefreshCw className="w-3.5 h-3.5" />
       </button>
+      
+      {onBranch && (
+        <button
+          onClick={onBranch}
+          className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-white/5 transition-all duration-200 hover:scale-110 active:scale-95"
+          title="Branch from here"
+        >
+          <GitBranch className="w-3.5 h-3.5" />
+        </button>
+      )}
 
       <div className="w-px h-3 bg-border/20 mx-0.5" />
       
@@ -745,6 +761,8 @@ export default function DashboardPage() {
   const [showPresetsClosing, setShowPresetsClosing] = useState(false)
 
   const [selectedModel, setSelectedModel] = useState("gpt-4.1-mini")
+  const [showModels, setShowModels] = useState(false)
+  const [showModelsClosing, setShowModelsClosing] = useState(false)
   
   const [webSearchEnabled, setWebSearchEnabled] = useState(false)
   const [canvasEnabled, setCanvasEnabled] = useState(false)
@@ -760,6 +778,14 @@ export default function DashboardPage() {
   const [credits, setCredits] = useState<{ used: number; total: number; available: number } | null>(null)
   const [currentTier, setCurrentTier] = useState<"free" | "pro" | "studio">("free")
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const abortControllerRef = useRef<AbortController | null>(null)
+
+  const toggleSidebarCollapsed = () => {
+    const newValue = !sidebarCollapsed
+    setSidebarCollapsed(newValue)
+    localStorage.setItem("sidebar_collapsed", String(newValue))
+  }
 
   const MODELS = getAllModels()
   
@@ -899,6 +925,13 @@ export default function DashboardPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  useEffect(() => {
+    const saved = localStorage.getItem("sidebar_collapsed")
+    if (saved === "true") {
+      setSidebarCollapsed(true)
+    }
+  }, [])
 
   useEffect(() => {
     if (connectionState === "connected") return
@@ -1068,6 +1101,38 @@ export default function DashboardPage() {
         if (selectedChat?.id === chatId) {
           setSelectedChat(data.chat)
         }
+      }
+    } catch {}
+  }
+
+  async function branchChat(messageIndex: number) {
+    if (!selectedProject || !selectedChat) return
+    
+    const branchedMessages = messages.slice(0, messageIndex + 1)
+    if (branchedMessages.length === 0) return
+    
+    try {
+      const res = await fetch("/api/chats", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          projectId: selectedProject.id,
+          name: `Branch: ${selectedChat.name}`,
+          messages: branchedMessages.map(m => ({
+            role: m.role,
+            content: m.content,
+            reasoning: m.reasoning,
+          })),
+          parentChatId: selectedChat.id,
+          branchIndex: messageIndex,
+        }),
+      })
+      const data = await res.json()
+      if (data.chat) {
+        const newchats = [data.chat, ...chats]
+        setChats(newchats)
+        savechatstocache(newchats)
+        window.open(`/dashboard?chat=${data.chat.id}`, '_blank')
       }
     } catch {}
   }
@@ -1249,6 +1314,14 @@ export default function DashboardPage() {
 
   }
 
+  function stopGeneration() {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+      setLoading(false)
+    }
+  }
+
   async function handleSend() {
     if ((!input.trim() && uploadedFiles.length === 0) || loading || !selectedProject) return
 
@@ -1350,10 +1423,14 @@ export default function DashboardPage() {
       
       const encryptedpayload = encryptdata(JSON.stringify(payload))
       
+      const abortController = new AbortController()
+      abortControllerRef.current = abortController
+      
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ encrypted: encryptedpayload }),
+        signal: abortController.signal,
       })
 
       if (!response.ok) {
@@ -1644,17 +1721,22 @@ export default function DashboardPage() {
       
       fetchBillingInfo()
     } catch (error) {
-      console.error("[Chat] Error in handleSend:", error)
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: "Sorry, an error occurred. Please try again.",
-        },
-      ])
+      if (error instanceof Error && error.name === "AbortError") {
+        console.log("[Chat] Generation stopped by user")
+      } else {
+        console.error("[Chat] Error in handleSend:", error)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: "Sorry, an error occurred. Please try again.",
+          },
+        ])
+      }
     } finally {
       setLoading(false)
+      abortControllerRef.current = null
       fetchBillingInfo()
     }
   }
@@ -1674,74 +1756,128 @@ export default function DashboardPage() {
       )}
       
       <aside className={cn(
-        "fixed md:relative z-50 md:z-auto w-72 md:w-64 h-full border-r bg-card/95 md:bg-card/50 backdrop-blur-xl md:backdrop-blur-none p-4 flex flex-col transition-transform duration-300",
-        sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+        "fixed md:relative z-50 md:z-auto h-full border-r bg-card/95 md:bg-card/50 backdrop-blur-xl md:backdrop-blur-none flex flex-col transition-all duration-300 ease-out",
+        sidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0",
+        sidebarCollapsed ? "w-16 p-2" : "w-72 md:w-64 p-4"
       )}>
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-9 h-9 bg-white/[0.06] rounded-lg flex items-center justify-center border border-white/[0.08]">
-            <Brain className="w-5 h-5 text-white/80" />
-          </div>
-          <span className="text-lg font-semibold text-white/90 tracking-tight">Overmind</span>
-        </div>
-
-        <div className="mb-4">
-          <div className="relative">
-            <Button
-              variant="outline"
-              className="w-full justify-between text-left"
-              onClick={() => setShowProjects(!showProjects)}
-            >
-              <div className="flex items-center gap-2">
-                <Folder className="w-4 h-4" />
-                <span className="truncate">{selectedProject?.name || "Select Project"}</span>
-              </div>
-              <ChevronDown className="w-4 h-4" />
-            </Button>
-
-            {showProjects && (
-              <Card className="absolute left-0 right-0 top-full mt-1 p-2 z-50 max-h-48 overflow-y-auto">
-                {projects.map((p) => (
-                  <button
-                    key={p.id}
-                    className={cn(
-                      "w-full p-2 rounded text-left text-sm hover:bg-accent transition-colors",
-                      selectedProject?.id === p.id && "bg-accent"
-                    )}
-                    onClick={() => {
-                      setSelectedProject(p)
-                      setShowProjects(false)
-                    }}
-                  >
-                    {p.name}
-                  </button>
-                ))}
-                <div className="border-t mt-2 pt-2">
-                  <div className="flex gap-1">
-                    <Input
-                      placeholder="New project..."
-                      value={newProjectName}
-                      onChange={(e) => setNewProjectName(e.target.value)}
-                      className="h-8 text-xs"
-                      onKeyDown={(e) => e.key === "Enter" && createProject()}
-                    />
-                    <Button size="sm" className="h-8 px-2" onClick={createProject}>
-                      <Plus className="w-3 h-3" />
-                    </Button>
-                  </div>
-                </div>
-              </Card>
+        <div className={cn(
+          "flex items-center mb-6 transition-all duration-300",
+          sidebarCollapsed ? "justify-center" : "gap-3"
+        )}>
+          <button
+            onClick={() => {
+              if (sidebarCollapsed) {
+                toggleSidebarCollapsed()
+              } else {
+                router.push("/dashboard")
+              }
+            }}
+            className="group relative flex items-center justify-center w-8 h-8 flex-shrink-0 hover:opacity-80 transition-all duration-200"
+            title={sidebarCollapsed ? "Expand sidebar" : "Overmind Dashboard"}
+          >
+            <Brain className={cn(
+              "w-6 h-6 text-white transition-all duration-200",
+              sidebarCollapsed && "group-hover:opacity-0 group-hover:scale-75"
+            )} />
+            {sidebarCollapsed && (
+              <PanelLeft className="w-5 h-5 text-white/70 absolute opacity-0 group-hover:opacity-100 transition-all duration-200 scale-75 group-hover:scale-100" />
             )}
-          </div>
+          </button>
+          {!sidebarCollapsed && (
+            <>
+              <span className="text-lg font-semibold text-white tracking-tight">Overmind</span>
+              <button
+                onClick={toggleSidebarCollapsed}
+                className="hidden md:flex p-1.5 rounded-lg text-white/40 hover:text-white/70 hover:bg-white/5 transition-colors ml-auto"
+                title="Collapse sidebar"
+              >
+                <PanelLeftClose className="w-4 h-4" />
+              </button>
+            </>
+          )}
         </div>
+
+        {!sidebarCollapsed && (
+          <div className="mb-4">
+            <div className="relative">
+              <Button
+                variant="outline"
+                className="w-full justify-between text-left"
+                onClick={() => setShowProjects(!showProjects)}
+              >
+                <div className="flex items-center gap-2">
+                  <Folder className="w-4 h-4" />
+                  <span className="truncate">{selectedProject?.name || "Select Project"}</span>
+                </div>
+                <ChevronDown className="w-4 h-4" />
+              </Button>
+
+              {showProjects && (
+                <Card className="absolute left-0 right-0 top-full mt-1 p-2 z-50 max-h-48 overflow-y-auto">
+                  {projects.map((p) => (
+                    <button
+                      key={p.id}
+                      className={cn(
+                        "w-full p-2 rounded text-left text-sm hover:bg-accent transition-colors",
+                        selectedProject?.id === p.id && "bg-accent"
+                      )}
+                      onClick={() => {
+                        setSelectedProject(p)
+                        setShowProjects(false)
+                      }}
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                  <div className="border-t mt-2 pt-2">
+                    <div className="flex gap-1">
+                      <Input
+                        placeholder="New project..."
+                        value={newProjectName}
+                        onChange={(e) => setNewProjectName(e.target.value)}
+                        className="h-8 text-xs"
+                        onKeyDown={(e) => e.key === "Enter" && createProject()}
+                      />
+                      <Button size="sm" className="h-8 px-2" onClick={createProject}>
+                        <Plus className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              )}
+            </div>
+          </div>
+        )}
+        {sidebarCollapsed && (
+          <div className="mb-4 flex justify-center">
+            <button
+              className="p-2 rounded-lg hover:bg-white/5 text-white/40 hover:text-white/70 transition-colors"
+              title={selectedProject?.name || "Select Project"}
+            >
+              <Folder className="w-5 h-5" />
+            </button>
+          </div>
+        )}
 
         <div className="flex-1 overflow-hidden flex flex-col">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium flex items-center gap-2">
-              <MessageSquare className="w-4 h-4" />
-              Your Chats
-            </span>
-            <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={createChat}>
-              <Plus className="w-3 h-3" />
+          <div className={cn(
+            "flex items-center mb-2",
+            sidebarCollapsed ? "justify-center" : "justify-between"
+          )}>
+            {!sidebarCollapsed && (
+              <span className="text-sm font-medium flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" />
+                Your Chats
+              </span>
+            )}
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className={cn("h-6 w-6 p-0", sidebarCollapsed && "h-8 w-8")} 
+              onClick={createChat}
+              title="New Chat"
+            >
+              <Plus className={cn("w-3 h-3", sidebarCollapsed && "w-4 h-4")} />
             </Button>
           </div>
 
@@ -1749,73 +1885,115 @@ export default function DashboardPage() {
             {chatsLoading ? (
               <ChatListSkeleton />
             ) : sortedChats.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-4">No chats yet</p>
+              !sidebarCollapsed && <p className="text-xs text-muted-foreground text-center py-4">No chats yet</p>
             ) : (
               sortedChats.map((chat) => (
                 <button
                   key={chat.id}
                   className={cn(
-                    "w-full flex items-center gap-2 p-2 rounded-lg text-left text-sm transition-colors",
+                    "w-full flex items-center gap-2 rounded-lg text-left text-sm transition-colors",
                     "hover:bg-accent/50",
-                    selectedChat?.id === chat.id && "bg-accent"
+                    selectedChat?.id === chat.id && "bg-accent",
+                    sidebarCollapsed ? "p-2 justify-center" : "p-2"
                   )}
                   onClick={() => { selectChat(chat); setSidebarOpen(false); }}
                   onContextMenu={(e) => handleChatContextMenu(e, chat)}
+                  title={sidebarCollapsed ? chat.name : undefined}
                 >
                   {chat.pinned ? (
-                    <Pin className="w-4 h-4 flex-shrink-0 text-primary" />
+                    <Pin className={cn("flex-shrink-0 text-primary", sidebarCollapsed ? "w-5 h-5" : "w-4 h-4")} />
                   ) : (
-                    <MessageSquare className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                    <MessageSquare className={cn("flex-shrink-0 text-muted-foreground", sidebarCollapsed ? "w-5 h-5" : "w-4 h-4")} />
                   )}
-                  <span className="flex-1 truncate">{chat.name}</span>
+                  {!sidebarCollapsed && <span className="flex-1 truncate">{chat.name}</span>}
                 </button>
               ))
             )}
           </div>
         </div>
 
-        <div className="border-t pt-4 space-y-3">
+        <div className={cn("border-t pt-4 space-y-3", sidebarCollapsed && "space-y-2")}>
           <Button 
-            className="w-full justify-between gap-3 relative overflow-hidden bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-500 hover:via-purple-500 hover:to-fuchsia-500 border-0 text-white shadow-lg shadow-purple-500/25 group"
+            className={cn(
+              "relative overflow-hidden bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 hover:from-violet-500 hover:via-purple-500 hover:to-fuchsia-500 border-0 text-white shadow-lg shadow-purple-500/25 group transition-all duration-300",
+              sidebarCollapsed ? "w-10 h-10 p-0 justify-center" : "w-full justify-between gap-3"
+            )}
             onClick={() => router.push("/upgrade")}
+            title="Upgrade to Pro"
           >
             <div className="absolute inset-0 bg-[linear-gradient(110deg,transparent_25%,rgba(255,255,255,0.2)_50%,transparent_75%)] bg-[length:200%_100%] animate-shimmer" />
             <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-            <div className="flex items-center gap-3 relative z-10">
-              <div className="p-1 bg-white/20 rounded-md">
+            <div className={cn(
+              "flex items-center gap-3 relative z-10",
+              sidebarCollapsed && "gap-0"
+            )}>
+              <div className={cn("p-1 bg-white/20 rounded-md", sidebarCollapsed && "p-0 bg-transparent")}>
                 <Crown className="w-4 h-4" />
               </div>
-              <span className="font-semibold">Go Pro</span>
+              {!sidebarCollapsed && <span className="font-semibold">Go Pro</span>}
             </div>
-            <div className="flex items-center gap-2 relative z-10">
-              <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">50% OFF</span>
-              <Sparkles className="w-4 h-4" />
-            </div>
+            {!sidebarCollapsed && (
+              <div className="flex items-center gap-2 relative z-10">
+                <span className="text-xs bg-white/20 px-2 py-0.5 rounded-full font-medium">50% OFF</span>
+                <Sparkles className="w-4 h-4" />
+              </div>
+            )}
           </Button>
-          <div className="flex gap-1">
-            <Button variant="ghost" className="flex-1 justify-start gap-2 px-3" size="sm" onClick={() => router.push("?settings=true&tab=account")}>
-              <Settings className="w-4 h-4" />
-              Settings
+          <div className={cn(
+            "flex gap-1 transition-all duration-300",
+            sidebarCollapsed ? "flex-col" : "flex-row"
+          )}>
+            <Button 
+              variant="ghost" 
+              className={cn(
+                "transition-all duration-300",
+                sidebarCollapsed 
+                  ? "w-10 h-10 p-0 justify-center" 
+                  : "flex-1 justify-start gap-2 px-3"
+              )} 
+              size="sm" 
+              onClick={() => router.push("?settings=true&tab=account")}
+              title="Settings"
+            >
+              <Settings className="w-4 h-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>Settings</span>}
             </Button>
-            <Button variant="ghost" className="flex-1 justify-start gap-2 px-3" size="sm" onClick={() => router.push("?settings=true&tab=api-keys")}>
-              <Key className="w-4 h-4" />
-              Keys
+            <Button 
+              variant="ghost" 
+              className={cn(
+                "transition-all duration-300",
+                sidebarCollapsed 
+                  ? "w-10 h-10 p-0 justify-center" 
+                  : "flex-1 justify-start gap-2 px-3"
+              )} 
+              size="sm" 
+              onClick={() => router.push("?settings=true&tab=api-keys")}
+              title="API Keys"
+            >
+              <Key className="w-4 h-4 flex-shrink-0" />
+              {!sidebarCollapsed && <span>Keys</span>}
             </Button>
           </div>
 
 
-          <div className="rounded-xl bg-[#111115]/80 backdrop-blur-sm border border-white/[0.06]">
-            <div className="flex items-center gap-2 px-3 py-2.5">
+          <div className={cn(
+            "rounded-xl bg-[#111115]/80 backdrop-blur-sm border border-white/[0.06] transition-all duration-300",
+            sidebarCollapsed && "p-2"
+          )}>
+            <div className={cn(
+              "flex items-center gap-2 transition-all duration-300",
+              sidebarCollapsed ? "flex-col" : "px-3 py-2.5"
+            )}>
               <div className={cn(
                 "px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider flex-shrink-0",
                 currentTier === "free" && "bg-white/[0.06] text-white/60",
                 currentTier === "pro" && "bg-violet-500/20 text-violet-300",
                 currentTier === "studio" && "bg-amber-500/20 text-amber-300"
               )}>
-                {currentTier}
+                {sidebarCollapsed ? currentTier.charAt(0).toUpperCase() : currentTier}
               </div>
               
-              {credits ? (
+              {!sidebarCollapsed && credits ? (
                 <>
                   <div className="h-3 w-px bg-white/[0.08] flex-shrink-0" />
                   <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -1827,15 +2005,18 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 </>
-              ) : (
+              ) : !sidebarCollapsed && (
                 <CreditsSkeleton />
               )}
               
-              <div className="flex-1 min-w-0" />
+              {!sidebarCollapsed && <div className="flex-1 min-w-0" />}
               
               <button
                 onClick={handleLogout}
-                className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors flex-shrink-0"
+                className={cn(
+                  "p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-colors flex-shrink-0",
+                  sidebarCollapsed && "w-full flex justify-center"
+                )}
                 title="Logout"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -1846,15 +2027,14 @@ export default function DashboardPage() {
       </aside>
 
       <main className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="border-b bg-card/50 p-2 sm:p-4 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 sm:gap-4">
+        <header className="border-b border-white/[0.06] bg-transparent px-3 py-2 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3">
             <button
-              className="p-2 rounded-lg hover:bg-accent md:hidden"
+              className="p-2 rounded-lg hover:bg-white/[0.05] md:hidden transition-colors"
               onClick={() => setSidebarOpen(true)}
             >
               <Menu className="w-5 h-5" />
             </button>
-            <h1 className="text-base sm:text-lg font-semibold">Chat</h1>
           </div>
 
           
@@ -1981,7 +2161,8 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin pt-20">
+          <div className="flex-1 overflow-y-auto scrollbar-thin">
+            <div className="max-w-3xl mx-auto p-4 pb-40 space-y-4 pt-20">
             {messages.length === 0 && (
               <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="w-20 h-20 bg-gradient-to-br from-primary/20 to-primary/5 rounded-3xl flex items-center justify-center mb-6">
@@ -2129,18 +2310,18 @@ export default function DashboardPage() {
                     const userMsgIndex = messageIndex - 1
                     if (userMsgIndex >= 0 && messages[userMsgIndex]?.role === "user") {
                       const userContent = messages[userMsgIndex].content
-                      setMessages(prev => prev.slice(0, userMsgIndex))
+                      setMessages(prev => prev.slice(0, messageIndex))
                       setInput(userContent)
-                      setTimeout(() => handleSend(), 100)
                     }
                   }}
+                  onBranch={() => branchChat(messageIndex)}
                 />
               </div>
             )
           })}
 
           {loading && (
-            <div className="flex gap-3 animate-fade-in">
+            <div className="flex gap-3 animate-fade-in items-center">
               <div className="w-8 h-8 bg-gradient-to-br from-primary to-primary/60 rounded-lg flex items-center justify-center flex-shrink-0">
                 <Loader2 className="w-4 h-4 text-white animate-spin" />
               </div>
@@ -2154,50 +2335,142 @@ export default function DashboardPage() {
             </div>
           )}
 
-          <div ref={messagesEndRef} />
+            <div ref={messagesEndRef} />
+          </div>
         </div>
-      </div>
+        <div className="absolute bottom-0 left-0 right-0 p-4 pb-6 bg-gradient-to-t from-background via-background/80 to-transparent pointer-events-none">
+          <div className="max-w-3xl mx-auto pointer-events-auto">
+            <div className="bg-card/95 backdrop-blur-xl border border-border/50 shadow-2xl rounded-2xl p-4 space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="relative">
+                  <button
+              onClick={() => {
+                if (showModels) {
+                  setShowModelsClosing(true)
+                  setTimeout(() => {
+                    setShowModels(false)
+                    setShowModelsClosing(false)
+                  }, 120)
+                } else {
+                  setShowModels(true)
+                }
+              }}
+              className="group flex items-center gap-2 px-2 py-1 rounded-lg text-sm transition-all hover:bg-white/[0.04]"
+            >
+              <span className="font-medium text-foreground">{MODELS.find(m => m.id === selectedModel)?.name || "Select model"}</span>
+              <ChevronDown className={cn(
+                "w-4 h-4 text-muted-foreground/60 transition-all group-hover:text-muted-foreground",
+                showModels && "rotate-180"
+              )} />
+            </button>
 
-      <div className="border-t bg-card/50 p-4 pt-3 space-y-4">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            onClick={() => setWebSearchEnabled(!webSearchEnabled)}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all hover:scale-105 active:scale-95",
-              webSearchEnabled
-                ? "bg-blue-500/20 text-blue-400 ring-1 ring-blue-500/30"
-                : "bg-white/[0.03] text-muted-foreground hover:text-foreground hover:bg-white/[0.08]"
+            {showModels && (
+              <>
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => {
+                    setShowModelsClosing(true)
+                    setTimeout(() => {
+                      setShowModels(false)
+                      setShowModelsClosing(false)
+                    }, 120)
+                  }} 
+                />
+                <Card className={cn(
+                  "absolute left-0 bottom-full mb-2 w-72 p-2 z-50 bg-card/95 backdrop-blur-xl border-border/50 shadow-2xl",
+                  showModelsClosing ? "animate-dropdown-up-out" : "animate-dropdown-up"
+                )}>
+                  <div className="px-2 py-1.5 mb-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Select Model</p>
+                  </div>
+                  {MODELS.map((model) => {
+                    const isActive = selectedModel === model.id
+                    const isLocked = model.requiredTier === "pro" && currentTier === "free" || 
+                                    model.requiredTier === "studio" && currentTier !== "studio"
+                    
+                    return (
+                      <button
+                        key={model.id}
+                        disabled={isLocked}
+                        className={cn(
+                          "w-full p-2.5 rounded-lg text-left transition-all duration-200 flex items-center gap-3",
+                          isActive && "bg-accent",
+                          !isActive && !isLocked && "hover:bg-accent/50",
+                          isLocked && "opacity-40 cursor-not-allowed"
+                        )}
+                        onClick={() => {
+                          if (isLocked) return
+                          setSelectedModel(model.id)
+                          setShowModelsClosing(true)
+                          setTimeout(() => {
+                            setShowModels(false)
+                            setShowModelsClosing(false)
+                          }, 120)
+                        }}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{model.name}</span>
+                            {model.requiredTier === "pro" && (
+                              <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide rounded bg-violet-500/20 text-violet-400">Pro</span>
+                            )}
+                            {model.requiredTier === "studio" && (
+                              <span className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide rounded bg-amber-500/20 text-amber-400">Studio</span>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">{model.description}</p>
+                        </div>
+                        {isActive && (
+                          <Check className="w-4 h-4 text-green-500 flex-shrink-0" />
+                        )}
+                      </button>
+                    )
+                  })}
+                </Card>
+              </>
             )}
-          >
-            <Search className="w-3.5 h-3.5" />
-            <span>Web Search</span>
-          </button>
-          
-          <button
-            onClick={() => setCanvasEnabled(!canvasEnabled)}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all hover:scale-105 active:scale-95",
-              canvasEnabled
-                ? "bg-green-500/20 text-green-400 ring-1 ring-green-500/30"
-                : "bg-white/[0.03] text-muted-foreground hover:text-foreground hover:bg-white/[0.08]"
-            )}
-          >
-            <FileCode className="w-3.5 h-3.5" />
-            <span>Canvas</span>
-          </button>
-          
-          <button
-            onClick={() => setMentorEnabled(!mentorEnabled)}
-            className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all hover:scale-105 active:scale-95",
-              mentorEnabled
-                ? "bg-purple-500/20 text-purple-400 ring-1 ring-purple-500/30"
-                : "bg-white/[0.03] text-muted-foreground hover:text-foreground hover:bg-white/[0.08]"
-            )}
-          >
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Academy</span>
-          </button>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all hover:scale-105 active:scale-95",
+                webSearchEnabled
+                  ? "bg-blue-500/20 text-blue-400 ring-1 ring-blue-500/30"
+                  : "bg-white/[0.03] text-muted-foreground hover:text-foreground hover:bg-white/[0.08]"
+              )}
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Search</span>
+            </button>
+            
+            <button
+              onClick={() => setCanvasEnabled(!canvasEnabled)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all hover:scale-105 active:scale-95",
+                canvasEnabled
+                  ? "bg-green-500/20 text-green-400 ring-1 ring-green-500/30"
+                  : "bg-white/[0.03] text-muted-foreground hover:text-foreground hover:bg-white/[0.08]"
+              )}
+            >
+              <FileCode className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Canvas</span>
+            </button>
+            
+            <button
+              onClick={() => setMentorEnabled(!mentorEnabled)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all hover:scale-105 active:scale-95",
+                mentorEnabled
+                  ? "bg-purple-500/20 text-purple-400 ring-1 ring-purple-500/30"
+                  : "bg-white/[0.03] text-muted-foreground hover:text-foreground hover:bg-white/[0.08]"
+              )}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Academy</span>
+            </button>
+          </div>
         </div>
 
         <form
@@ -2211,6 +2484,7 @@ export default function DashboardPage() {
             value={input}
             onChange={setInput}
             onSend={handleSend}
+            onStop={stopGeneration}
             placeholder="Ask Overmind anything..."
             loading={loading}
             className="flex-1"
@@ -2327,39 +2601,6 @@ export default function DashboardPage() {
                       </div>
                     </div>
 
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider px-2 mb-2">Model</p>
-                      <div className="space-y-1">
-                        {MODELS.map((model) => {
-                          const isActive = selectedModel === model.id
-                          return (
-                            <button
-                              key={model.id}
-                              className={cn(
-                                "w-full p-2.5 rounded-lg text-left transition-all duration-200 flex items-center gap-2.5 border",
-                                isActive 
-                                  ? "bg-violet-500/15 border-violet-500/30 shadow-lg shadow-violet-500/10" 
-                                  : "bg-white/[0.02] border-border/50 hover:bg-white/[0.05] hover:border-border"
-                              )}
-                              onClick={() => {
-                                setSelectedModel(model.id)
-                                closeContextMenu()
-                              }}
-                            >
-                              <span className="text-lg">{model.icon}</span>
-                              <div className="flex-1 min-w-0">
-                                <div className={cn("font-medium text-sm", isActive && "text-violet-400")}>{model.name}</div>
-                                <p className="text-xs text-muted-foreground">{model.description}</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground">{model.creditCost}x</span>
-                                {isActive && <Check className="w-4 h-4 text-violet-500" />}
-                              </div>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
                   </div>
 
                   <div className="border-t border-border/30 mt-3 pt-3">
@@ -2383,6 +2624,9 @@ export default function DashboardPage() {
             }
           />
           </form>
+            </div>
+          </div>
+        </div>
         </div>
       </main>
 

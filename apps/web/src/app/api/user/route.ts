@@ -47,6 +47,10 @@ export async function GET() {
         displayName: user.displayName,
         createdAt: user.createdAt,
         preferredProvider: user.preferredProvider,
+        customInstructions: user.customInstructions || "",
+        nickname: user.nickname || "",
+        occupation: user.occupation || "",
+        aboutYou: user.aboutYou || "",
       },
     })
   } catch {
@@ -61,9 +65,17 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const { email, displayName, preferredProvider } = await request.json()
+    const { email, displayName, preferredProvider, customInstructions, nickname, occupation, aboutYou } = await request.json()
 
-    const updates: { email?: string; displayName?: string; preferredProvider?: string } = {}
+    const updates: {
+      email?: string
+      displayName?: string
+      preferredProvider?: string
+      customInstructions?: string
+      nickname?: string
+      occupation?: string
+      aboutYou?: string
+    } = {}
 
     if (email && email !== user.email) {
       const emailLower = email.toLowerCase()
@@ -82,6 +94,22 @@ export async function PATCH(request: NextRequest) {
       updates.preferredProvider = preferredProvider
     }
 
+    if (customInstructions !== undefined) {
+      updates.customInstructions = customInstructions
+    }
+
+    if (nickname !== undefined) {
+      updates.nickname = nickname
+    }
+
+    if (occupation !== undefined) {
+      updates.occupation = occupation
+    }
+
+    if (aboutYou !== undefined) {
+      updates.aboutYou = aboutYou
+    }
+
     if (Object.keys(updates).length > 0) {
       await db.updateUser(user.id, updates)
     }
@@ -95,6 +123,10 @@ export async function PATCH(request: NextRequest) {
         displayName: updatedUser?.displayName,
         createdAt: updatedUser?.createdAt,
         preferredProvider: updatedUser?.preferredProvider,
+        customInstructions: updatedUser?.customInstructions || "",
+        nickname: updatedUser?.nickname || "",
+        occupation: updatedUser?.occupation || "",
+        aboutYou: updatedUser?.aboutYou || "",
       },
     })
   } catch {
