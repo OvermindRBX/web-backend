@@ -1,10 +1,11 @@
-import { ServerScriptService, ServerStorage, ReplicatedStorage, Players, Workspace, StarterPlayer, StarterGui, StarterPack, Lighting, SoundService, Chat, Teams, ReplicatedFirst, CollectionService, ChangeHistoryService } from "@rbxts/services"
+import { ServerScriptService, ServerStorage, ReplicatedStorage, Players, Workspace, StarterPlayer, StarterGui, StarterPack, Lighting, SoundService, Chat, Teams, ReplicatedFirst, CollectionService } from "@rbxts/services"
 import { SignalAction } from "./types"
 
 const scriptEditor = game.GetService("ScriptEditorService") as ScriptEditorService
+const changeHistory = game.GetService("ChangeHistoryService") as ChangeHistoryService
 
 function setWaypoint(name: string): void {
-	ChangeHistoryService.SetWaypoint(`Overmind: ${name}`)
+	changeHistory.SetWaypoint(`Overmind: ${name}`)
 }
 
 type ScriptKind = "server" | "client" | "module"

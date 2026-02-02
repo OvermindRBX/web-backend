@@ -257,6 +257,36 @@ async function executeToolInternal(
       console.log(`[Tool] ${name}: client-side tool, returning success`)
       return { success: true, message: "Canvas tool executed on client" }
     }
+
+    case "smart_edit": {
+      const path = args.path as string
+      const instruction = args.instruction as string
+      const searchText = args.search_text as string | undefined
+      const replaceText = args.replace_text as string | undefined
+      
+      console.log(`[Tool] smart_edit:`, { path, instruction, hasSearch: !!searchText, hasReplace: !!replaceText })
+      
+      if (searchText && replaceText) {
+        return {
+          queued: true,
+          action: "smart_edit",
+          args: { path, searchText, replaceText, instruction },
+          message: `Smart edit queued: replace "${searchText.slice(0, 50)}..." in ${path}`
+        }
+      }
+      
+      return {
+        queued: true,
+        action: "smart_edit",
+        args: { path, instruction },
+        message: `Smart edit queued for ${path}: ${instruction}`
+      }
+    }
+
+    case "bulk": {
+      console.log(`[Tool] bulk: handled by bulk executor`)
+      return { success: true, message: "Bulk tool handled separately" }
+    }
       
     default:
       throw new Error(`Unimplemented tool: ${name}`)

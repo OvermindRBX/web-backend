@@ -1,30 +1,17 @@
-const ENCRYPTION_KEY = process.env.NEXT_PUBLIC_ENCRYPTION_KEY || "overmind-client-encryption-key-32b"
-const FAST_KEY = new TextEncoder().encode(ENCRYPTION_KEY.padEnd(32, "0").slice(0, 32))
-
 export function encryptdata(plaintext: string): string {
-  const data = new TextEncoder().encode(plaintext)
-  const encrypted = new Uint8Array(data.length)
-  
-  for (let i = 0; i < data.length; i++) {
-    encrypted[i] = data[i] ^ FAST_KEY[i % 32]
+  try {
+    return btoa(unescape(encodeURIComponent(plaintext)))
+  } catch {
+    return btoa(plaintext)
   }
-  
-  let binary = ""
-  for (let i = 0; i < encrypted.length; i++) {
-    binary += String.fromCharCode(encrypted[i])
-  }
-  return btoa(binary)
 }
 
 export function decryptdata(ciphertext: string): string {
-  const data = Uint8Array.from(atob(ciphertext), c => c.charCodeAt(0))
-  const decrypted = new Uint8Array(data.length)
-  
-  for (let i = 0; i < data.length; i++) {
-    decrypted[i] = data[i] ^ FAST_KEY[i % 32]
+  try {
+    return decodeURIComponent(escape(atob(ciphertext)))
+  } catch {
+    return atob(ciphertext)
   }
-  
-  return new TextDecoder().decode(decrypted)
 }
 
 export async function encryptstream(readable: ReadableStream<Uint8Array>): Promise<ReadableStream<Uint8Array>> {

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef, useState, useCallback } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ChatInput, type UploadedFile } from "@/components/ui/chat-input"
@@ -49,7 +49,15 @@ import {
   PanelLeftClose,
   PanelLeft,
   GitBranch,
-  Square
+  Square,
+  Mic,
+  Bookmark,
+  BookmarkCheck,
+  Reply,
+  MoreHorizontal,
+  Smile,
+  GripVertical,
+  FolderPlus
 } from "lucide-react"
 import { ContextMenu, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu"
 import { InputModal, ConfirmModal } from "@/components/ui/modal"
@@ -64,6 +72,10 @@ import { WebOutlineCard } from "@/components/ui/web-outline-card"
 import { CanvasPanel, type CanvasHistory } from "@/components/ui/canvas-panel"
 import { SettingsModal } from "@/components/ui/settings-modal"
 import { ChatListSkeleton, CreditsSkeleton } from "@/components/ui/skeleton"
+import { VoiceInput } from "@/components/ui/voice-input"
+import { EmojiPicker } from "@/components/ui/emoji-picker"
+import { IconPicker } from "@/components/ui/icon-picker"
+import { MemoryManager } from "@/components/ui/memory-manager"
 
 type Preset = "fast" | "edit" | "planning" | "unrestricted"
 type ConnectionState = "disconnected" | "connecting" | "connected"
@@ -88,6 +100,12 @@ interface ToolCall {
   outlineResult?: { url: string; title: string; content: string; wordCount: number }
 }
 
+interface Reaction {
+  emoji: string
+  count: number
+  users: string[]
+}
+
 interface Message {
   id: string
   role: "user" | "assistant"
@@ -95,6 +113,16 @@ interface Message {
   reasoning?: string
   toolCalls?: ToolCall[]
   isThinking?: boolean
+  reactions?: Reaction[]
+  bookmarked?: boolean
+  replyTo?: string
+}
+
+interface Category {
+  id: string
+  name: string
+  icon: string
+  order: number
 }
 
 interface Chat {
@@ -105,6 +133,8 @@ interface Chat {
   messageCount: number
   manuallyRenamed: boolean
   pinned: boolean
+  categoryId?: string
+  order?: number
   createdAt: number
   updatedAt: number
 }
@@ -556,13 +586,23 @@ function ThinkingIndicator({ stage }: { stage: "reasoning" | "processing" | "con
 
 function MessageActionBar({ 
   content, 
+  messageId,
+  bookmarked,
   onRegenerate,
   onBranch,
+  onBookmark,
+  onReply,
+  onReact,
   isLatest = false
 }: { 
   content: string
+  messageId: string
+  bookmarked?: boolean
   onRegenerate?: () => void
   onBranch?: () => void
+  onBookmark?: () => void
+  onReply?: () => void
+  onReact?: (e: React.MouseEvent) => void
   isLatest?: boolean
 }) {
   const [copied, setCopied] = useState(false)
@@ -606,6 +646,37 @@ function MessageActionBar({
           <GitBranch className="w-3.5 h-3.5" />
         </button>
       )}
+
+      <div className="w-px h-3 bg-border/20 mx-0.5" />
+
+      <button
+        onClick={onBookmark}
+        className={cn(
+          "p-1.5 rounded-lg transition-all duration-200 hover:scale-110 active:scale-95",
+          bookmarked 
+            ? "text-amber-500 bg-amber-500/10" 
+            : "text-muted-foreground/60 hover:text-foreground hover:bg-white/5"
+        )}
+        title={bookmarked ? "Remove bookmark" : "Bookmark"}
+      >
+        {bookmarked ? <BookmarkCheck className="w-3.5 h-3.5" /> : <Bookmark className="w-3.5 h-3.5" />}
+      </button>
+
+      <button
+        onClick={onReply}
+        className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-white/5 transition-all duration-200 hover:scale-110 active:scale-95"
+        title="Reply"
+      >
+        <Reply className="w-3.5 h-3.5" />
+      </button>
+
+      <button
+        onClick={onReact}
+        className="p-1.5 rounded-lg text-muted-foreground/60 hover:text-foreground hover:bg-white/5 transition-all duration-200 hover:scale-110 active:scale-95"
+        title="Add reaction"
+      >
+        <Smile className="w-3.5 h-3.5" />
+      </button>
 
       <div className="w-px h-3 bg-border/20 mx-0.5" />
       
@@ -764,6 +835,16 @@ export default function DashboardPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const abortControllerRef = useRef<AbortController | null>(null)
 
+  const [categories, setCategories] = useState<Category[]>([])
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
+  const [showIconPicker, setShowIconPicker] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState("")
+  const [newCategoryIcon, setNewCategoryIcon] = useState("Folder")
+  const [showMemoryManager, setShowMemoryManager] = useState(false)
+  const [replyingTo, setReplyingTo] = useState<{ id: string; content: string } | null>(null)
+  const [draggedChat, setDraggedChat] = useState<string | null>(null)
+  const [showEmojiPicker, setShowEmojiPicker] = useState<{ messageId: string; position: { x: number; y: number } } | null>(null)
+
   const toggleSidebarCollapsed = () => {
     const newValue = !sidebarCollapsed
     setSidebarCollapsed(newValue)
@@ -884,6 +965,7 @@ export default function DashboardPage() {
     fetchUser()
     fetchProjects()
     fetchBillingInfo()
+    fetchCategories()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -1086,6 +1168,107 @@ export default function DashboardPage() {
         }
       }
     } catch {}
+  }
+
+  async function fetchCategories() {
+    try {
+      const res = await fetch("/api/categories")
+      const data = await res.json()
+      if (data.categories) setCategories(data.categories)
+    } catch {}
+  }
+
+  async function createCategory() {
+    if (!newCategoryName.trim()) return
+    try {
+      const res = await fetch("/api/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: newCategoryName.trim(), icon: newCategoryIcon }),
+      })
+      const data = await res.json()
+      if (data.category) {
+        setCategories(prev => [...prev, data.category])
+        setNewCategoryName("")
+        setNewCategoryIcon("Folder")
+        setShowCategoryModal(false)
+      }
+    } catch {}
+  }
+
+  async function addChatToCategory(chatId: string, categoryId: string | null) {
+    try {
+      await fetch("/api/chats", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: chatId, categoryId }),
+      })
+      setChats(prev => prev.map(c => c.id === chatId ? { ...c, categoryId: categoryId || undefined } : c))
+    } catch {}
+  }
+
+  async function toggleMessageBookmark(messageId: string) {
+    const message = messages.find(m => m.id === messageId)
+    if (!message) return
+    
+    const newBookmarked = !message.bookmarked
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, bookmarked: newBookmarked } : m))
+  }
+
+  async function addMessageReaction(messageId: string, emoji: string) {
+    setMessages(prev => prev.map(m => {
+      if (m.id !== messageId) return m
+      const reactions = m.reactions || []
+      const existing = reactions.find(r => r.emoji === emoji)
+      if (existing) {
+        return {
+          ...m,
+          reactions: reactions.map(r => r.emoji === emoji ? { ...r, count: r.count + 1 } : r)
+        }
+      }
+      return {
+        ...m,
+        reactions: [...reactions, { emoji, count: 1, users: ["user"] }]
+      }
+    }))
+    setShowEmojiPicker(null)
+  }
+
+  function handleReply(messageId: string, content: string) {
+    const preview = content.slice(0, 100) + (content.length > 100 ? "..." : "")
+    setReplyingTo({ id: messageId, content: preview })
+  }
+
+  function handleDragStart(e: React.DragEvent, chatId: string) {
+    setDraggedChat(chatId)
+    e.dataTransfer.effectAllowed = "move"
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = "move"
+  }
+
+  function handleDrop(e: React.DragEvent, targetChatId: string) {
+    e.preventDefault()
+    if (!draggedChat || draggedChat === targetChatId) return
+    
+    const draggedIdx = chats.findIndex(c => c.id === draggedChat)
+    const targetIdx = chats.findIndex(c => c.id === targetChatId)
+    
+    if (draggedIdx === -1 || targetIdx === -1) return
+    
+    const newChats = [...chats]
+    const [removed] = newChats.splice(draggedIdx, 1)
+    newChats.splice(targetIdx, 0, removed)
+    
+    setChats(newChats)
+    savechatstocache(newChats)
+    setDraggedChat(null)
+  }
+
+  function handleVoiceResult(text: string) {
+    setInput(prev => prev + (prev ? " " : "") + text)
   }
 
   async function branchChat(messageIndex: number) {
@@ -1873,16 +2056,24 @@ export default function DashboardPage() {
               sortedChats.map((chat) => (
                 <button
                   key={chat.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, chat.id)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, chat.id)}
                   className={cn(
-                    "w-full flex items-center gap-2 rounded-lg text-left text-sm transition-colors",
+                    "w-full flex items-center gap-2 rounded-lg text-left text-sm transition-all duration-200",
                     "hover:bg-accent/50",
                     selectedChat?.id === chat.id && "bg-accent",
-                    sidebarCollapsed ? "p-2 justify-center" : "p-2"
+                    sidebarCollapsed ? "p-2 justify-center" : "p-2",
+                    draggedChat === chat.id && "opacity-50 scale-95"
                   )}
                   onClick={() => { selectChat(chat); setSidebarOpen(false); }}
                   onContextMenu={(e) => handleChatContextMenu(e, chat)}
                   title={sidebarCollapsed ? chat.name : undefined}
                 >
+                  {!sidebarCollapsed && (
+                    <GripVertical className="w-3 h-3 text-muted-foreground/40 cursor-grab active:cursor-grabbing flex-shrink-0" />
+                  )}
                   {chat.pinned ? (
                     <Pin className={cn("flex-shrink-0 text-primary", sidebarCollapsed ? "w-5 h-5" : "w-4 h-4")} />
                   ) : (
@@ -2286,8 +2477,25 @@ export default function DashboardPage() {
                   </div>
                 </div>
                 
+                {message.reactions && message.reactions.length > 0 && (
+                  <div className="flex items-center gap-1 ml-11 mt-1">
+                    {message.reactions.map((r, idx) => (
+                      <button
+                        key={idx}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/5 hover:bg-white/10 text-xs transition-colors"
+                        onClick={() => addMessageReaction(message.id, r.emoji)}
+                      >
+                        <span>{r.emoji}</span>
+                        <span className="text-muted-foreground">{r.count}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <MessageActionBar 
-                  content={message.content} 
+                  content={message.content}
+                  messageId={message.id}
+                  bookmarked={message.bookmarked}
                   isLatest={!loading && messageIndex === messages.length - 1 && message.role === "assistant"}
                   onRegenerate={() => {
                     const userMsgIndex = messageIndex - 1
@@ -2298,6 +2506,9 @@ export default function DashboardPage() {
                     }
                   }}
                   onBranch={() => branchChat(messageIndex)}
+                  onBookmark={() => toggleMessageBookmark(message.id)}
+                  onReply={() => handleReply(message.id, message.content)}
+                  onReact={(e) => setShowEmojiPicker({ messageId: message.id, position: { x: e.clientX, y: e.clientY } })}
                 />
               </div>
             )
@@ -2453,8 +2664,33 @@ export default function DashboardPage() {
               <Sparkles className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Academy</span>
             </button>
+            <VoiceInput onresult={handleVoiceResult} />
+            
+            <button
+              onClick={() => setShowMemoryManager(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all hover:scale-105 active:scale-95 bg-white/[0.03] text-muted-foreground hover:text-foreground hover:bg-white/[0.08]"
+              title="AI Memories"
+            >
+              <Brain className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Memory</span>
+            </button>
           </div>
         </div>
+
+        {replyingTo && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-primary/10 border border-primary/20 rounded-lg mb-2">
+            <Reply className="w-4 h-4 text-primary" />
+            <span className="text-xs text-muted-foreground flex-1 truncate">
+              Replying to: {replyingTo.content}
+            </span>
+            <button
+              onClick={() => setReplyingTo(null)}
+              className="p-1 hover:bg-white/10 rounded"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        )}
 
         <form
           className="flex items-start gap-3"
@@ -2468,7 +2704,7 @@ export default function DashboardPage() {
             onChange={setInput}
             onSend={handleSend}
             onStop={stopGeneration}
-            placeholder="Ask Overmind anything..."
+            placeholder={replyingTo ? "Write your reply..." : "Ask Overmind anything..."}
             loading={loading}
             className="flex-1"
             files={uploadedFiles}
@@ -2697,6 +2933,35 @@ export default function DashboardPage() {
       />
 
       <SettingsModal />
+
+      {showEmojiPicker && (
+        <>
+          <div 
+            className="fixed inset-0 z-50" 
+            onClick={() => setShowEmojiPicker(null)} 
+          />
+          <div 
+            className="fixed z-50 animate-scale-in"
+            style={{ 
+              left: Math.min(showEmojiPicker.position.x, window.innerWidth - 320), 
+              top: Math.min(showEmojiPicker.position.y, window.innerHeight - 400) 
+            }}
+          >
+            <EmojiPicker 
+              open={true}
+              onselect={(emoji) => addMessageReaction(showEmojiPicker.messageId, emoji)}
+              onclose={() => setShowEmojiPicker(null)}
+            />
+          </div>
+        </>
+      )}
+
+      {showMemoryManager && (
+        <MemoryManager 
+          open={showMemoryManager}
+          onclose={() => setShowMemoryManager(false)}
+        />
+      )}
     </div>
   )
 }

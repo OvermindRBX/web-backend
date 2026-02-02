@@ -4,6 +4,7 @@ import { chat, streamChat, type ChatMessage } from "@/lib/ai/router"
 import { parseToolCalls, executeTool, hasToolCall, extractTextContent } from "@/lib/ai/executor"
 import { runAgent, type AgentChunk } from "@/lib/ai/agent"
 import { isCustomTool } from "@/lib/ai/custom-tools"
+import { executeBulkTools, parseBulkToolCall, formatBulkResults } from "@/lib/ai/bulk-executor"
 import type { Preset } from "@/lib/ai/presets"
 import { decryptchat, encryptchat } from "@/lib/crypto"
 import { calculateCreditCost, canUseCredits, checkRateLimit, isSameDay, getDailyCredits } from "@/lib/billing/credits"
@@ -230,6 +231,19 @@ export async function POST(request: NextRequest) {
               let hasToolResults = false
               
               for (const call of toolCalls) {
+                if (call.name === "bulk") {
+                  const bulktools = parseBulkToolCall(fullContent)
+                  if (bulktools && bulktools.length > 0) {
+                    const bulkresult = await executeBulkTools(bulktools, { projectId, userId: auth.userId })
+                    const encrypted = encryptchat(JSON.stringify({ type: "tool_result", call, result: { success: true, result: bulkresult } }))
+                    controller.enqueue(encoder.encode(`data: ${encrypted}\n\n`))
+                    
+                    hasToolResults = true
+                    toolResultsText += `\n[BULK TOOL RESULT]\n${formatBulkResults(bulkresult)}\n[END BULK RESULT]\n`
+                  }
+                  continue
+                }
+                
                 const result = await executeTool(call, { projectId, userId: auth.userId })
                 const encrypted = encryptchat(JSON.stringify({ type: "tool_result", call, result }))
                 controller.enqueue(encoder.encode(`data: ${encrypted}\n\n`))

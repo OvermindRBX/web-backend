@@ -224,6 +224,25 @@ export const TOOLS: ToolDefinition[] = [
       { name: "maxResults", type: "number", required: false, description: "Maximum results (default: 100)" },
     ],
   },
+  {
+    name: "bulk",
+    description: "Execute multiple tools in parallel for faster operations. All tools run simultaneously and results are returned together.",
+    category: "signals",
+    parameters: [
+      { name: "tools", type: "object", required: true, description: "Array of tool calls, each with 'name' and 'args'" },
+    ],
+  },
+  {
+    name: "smart_edit",
+    description: "Make context-aware edits to code files. Can perform search-and-replace or instruction-based modifications.",
+    category: "filesystem",
+    parameters: [
+      { name: "path", type: "string", required: true, description: "File path to edit" },
+      { name: "instruction", type: "string", required: true, description: "Natural language description of the edit to make" },
+      { name: "search_text", type: "string", required: false, description: "Text to find (for search-replace mode)" },
+      { name: "replace_text", type: "string", required: false, description: "Text to replace with (for search-replace mode)" },
+    ],
+  },
 ]
 
 import { CUSTOM_TOOLS } from "./custom-tools"

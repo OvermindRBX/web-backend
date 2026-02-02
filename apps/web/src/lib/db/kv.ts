@@ -68,12 +68,21 @@ export interface Task {
   updatedAt: number
 }
 
+export interface Reaction {
+  emoji: string
+  count: number
+  users: string[]
+}
+
 export interface ChatMessage {
   id: string
   role: "user" | "assistant"
   content: string
   reasoning?: string
   toolCalls?: { name: string; args: Record<string, string>; status: string; result?: string; error?: string }[]
+  reactions?: Reaction[]
+  bookmarked?: boolean
+  replyTo?: string
   createdAt: number
 }
 
@@ -86,10 +95,37 @@ export interface Chat {
   messageCount: number
   manuallyRenamed: boolean
   pinned: boolean
+  categoryId?: string
+  order?: number
   createdAt: number
   updatedAt: number
   parentChatId?: string
   branchIndex?: number
+}
+
+export interface Category {
+  id: string
+  userId: string
+  name: string
+  icon: string
+  order: number
+  createdAt: number
+}
+
+export interface Memory {
+  id: string
+  userId: string
+  content: string
+  source: "ai_learned" | "user_added" | "mistake_correction"
+  enabled: boolean
+  createdAt: number
+}
+
+export interface UserSettings {
+  userId: string
+  useMemories: boolean
+  useChatHistory: boolean
+  learnFromMistakes: boolean
 }
 
 export interface Conversation {
@@ -123,6 +159,11 @@ const KEYS = {
   projectConversation: (projectId: string) => `project:${projectId}:conversation`,
   chat: (id: string) => `chat:${id}`,
   projectChats: (projectId: string) => `project:${projectId}:chats`,
+  category: (id: string) => `category:${id}`,
+  userCategories: (userId: string) => `user:${userId}:categories`,
+  memory: (id: string) => `memory:${id}`,
+  userMemories: (userId: string) => `user:${userId}:memories`,
+  userSettings: (userId: string) => `user:${userId}:settings`,
   rivetConnection: (apiKey: string) => `rivet:conn:${apiKey}`,
   rivetSignals: (apiKey: string) => `rivet:signals:${apiKey}`,
 }
@@ -316,6 +357,89 @@ export const db = {
     
     await store.set(KEYS.chat(chatId), updatedChat)
     return updatedChat
+  },
+
+  async getCategory(id: string): Promise<Category | null> {
+    return await store.get<Category>(KEYS.category(id))
+  },
+
+  async createCategory(category: Category): Promise<void> {
+    await store.set(KEYS.category(category.id), category)
+    await store.sadd(KEYS.userCategories(category.userId), category.id)
+  },
+
+  async updateCategory(id: string, updates: Partial<Category>): Promise<void> {
+    const category = await this.getCategory(id)
+    if (!category) throw new Error("Category not found")
+    await store.set(KEYS.category(id), { ...category, ...updates })
+  },
+
+  async deleteCategory(id: string): Promise<void> {
+    const category = await this.getCategory(id)
+    if (!category) return
+    await store.del(KEYS.category(id))
+    await store.srem(KEYS.userCategories(category.userId), id)
+  },
+
+  async getUserCategories(userId: string): Promise<Category[]> {
+    const categoryIds = await (store.smembers as <T>(key: string) => Promise<T>)<string[]>(KEYS.userCategories(userId))
+    const categories = await Promise.all(categoryIds.map((id: string) => this.getCategory(id)))
+    return categories
+      .filter((c): c is Category => c !== null)
+      .sort((a, b) => a.order - b.order)
+  },
+
+  async getMemory(id: string): Promise<Memory | null> {
+    return await store.get<Memory>(KEYS.memory(id))
+  },
+
+  async createMemory(memory: Memory): Promise<void> {
+    await store.set(KEYS.memory(memory.id), memory)
+    await store.sadd(KEYS.userMemories(memory.userId), memory.id)
+  },
+
+  async updateMemory(id: string, updates: Partial<Memory>): Promise<void> {
+    const memory = await this.getMemory(id)
+    if (!memory) throw new Error("Memory not found")
+    await store.set(KEYS.memory(id), { ...memory, ...updates })
+  },
+
+  async deleteMemory(id: string): Promise<void> {
+    const memory = await this.getMemory(id)
+    if (!memory) return
+    await store.del(KEYS.memory(id))
+    await store.srem(KEYS.userMemories(memory.userId), id)
+  },
+
+  async getUserMemories(userId: string): Promise<Memory[]> {
+    const memoryIds = await (store.smembers as <T>(key: string) => Promise<T>)<string[]>(KEYS.userMemories(userId))
+    const memories = await Promise.all(memoryIds.map((id: string) => this.getMemory(id)))
+    return memories
+      .filter((m): m is Memory => m !== null && m.enabled)
+      .sort((a, b) => b.createdAt - a.createdAt)
+  },
+
+  async getAllUserMemories(userId: string): Promise<Memory[]> {
+    const memoryIds = await (store.smembers as <T>(key: string) => Promise<T>)<string[]>(KEYS.userMemories(userId))
+    const memories = await Promise.all(memoryIds.map((id: string) => this.getMemory(id)))
+    return memories
+      .filter((m): m is Memory => m !== null)
+      .sort((a, b) => b.createdAt - a.createdAt)
+  },
+
+  async getUserSettings(userId: string): Promise<UserSettings> {
+    const settings = await store.get<UserSettings>(KEYS.userSettings(userId))
+    return settings || {
+      userId,
+      useMemories: true,
+      useChatHistory: true,
+      learnFromMistakes: true,
+    }
+  },
+
+  async updateUserSettings(userId: string, updates: Partial<UserSettings>): Promise<void> {
+    const current = await this.getUserSettings(userId)
+    await store.set(KEYS.userSettings(userId), { ...current, ...updates })
   },
 
   async setRivetConnection(apiKey: string, data: { lastPing: number; userId?: string }): Promise<void> {

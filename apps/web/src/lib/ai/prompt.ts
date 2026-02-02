@@ -349,13 +349,82 @@ You are in VERBOSE DEBUG mode. Provide extensive logging and explanations.
   return context
 }
 
+function generateDateContext(): string {
+  const now = new Date()
+  const options: Intl.DateTimeFormatOptions = { 
+    weekday: "long", 
+    year: "numeric", 
+    month: "long", 
+    day: "numeric" 
+  }
+  const formatteddate = now.toLocaleDateString("en-US", options)
+  return `## CURRENT DATE\n\nToday is ${formatteddate}.`
+}
+
+export interface RobloxGameContext {
+  gamename?: string
+  services?: string[]
+  scripts?: { path: string; type: "server" | "client" | "module" }[]
+  folders?: string[]
+  remotes?: string[]
+  datastores?: string[]
+}
+
+function generateRobloxContext(context?: RobloxGameContext): string {
+  if (!context) return ""
+  
+  let robloxContext = "## ROBLOX GAME STRUCTURE\n\n"
+  
+  if (context.gamename) {
+    robloxContext += `**Game:** ${context.gamename}\n\n`
+  }
+  
+  if (context.services && context.services.length > 0) {
+    robloxContext += `**Active Services:**\n${context.services.map(s => `- ${s}`).join("\n")}\n\n`
+  }
+  
+  if (context.scripts && context.scripts.length > 0) {
+    const serverscripts = context.scripts.filter(s => s.type === "server")
+    const clientscripts = context.scripts.filter(s => s.type === "client")
+    const modules = context.scripts.filter(s => s.type === "module")
+    
+    if (serverscripts.length > 0) {
+      robloxContext += `**Server Scripts:**\n${serverscripts.map(s => `- ${s.path}`).join("\n")}\n\n`
+    }
+    if (clientscripts.length > 0) {
+      robloxContext += `**Client Scripts:**\n${clientscripts.map(s => `- ${s.path}`).join("\n")}\n\n`
+    }
+    if (modules.length > 0) {
+      robloxContext += `**Modules:**\n${modules.map(s => `- ${s.path}`).join("\n")}\n\n`
+    }
+  }
+  
+  if (context.folders && context.folders.length > 0) {
+    robloxContext += `**Folder Structure:**\n${context.folders.map(f => `- ${f}`).join("\n")}\n\n`
+  }
+  
+  if (context.remotes && context.remotes.length > 0) {
+    robloxContext += `**Remote Events/Functions:**\n${context.remotes.map(r => `- ${r}`).join("\n")}\n\n`
+  }
+  
+  if (context.datastores && context.datastores.length > 0) {
+    robloxContext += `**DataStores:**\n${context.datastores.map(d => `- ${d}`).join("\n")}\n\n`
+  }
+  
+  robloxContext += `Use this structure when creating new scripts or modifying existing ones. Follow existing naming conventions and folder organization.`
+  
+  return robloxContext
+}
+
 export function buildSystemPrompt(
   preset: Preset, 
   projectContext?: string, 
   userTier?: Tier,
   userInfo?: { displayName?: string; creditsUsed?: number; creditsTotal?: number; customInstructions?: string; nickname?: string; occupation?: string; aboutYou?: string },
   featureFlags?: FeatureFlags,
-  modes?: ModesConfig
+  modes?: ModesConfig,
+  memories?: string[],
+  robloxContext?: RobloxGameContext
 ): string {
   const basePrompt = loadInternalPrompt()
   const presetConfig = getPreset(preset)
@@ -363,6 +432,7 @@ export function buildSystemPrompt(
   const tierContext = userTier ? generateTierContext(userTier, userInfo) : ""
   const personalizationContext = generatePersonalizationContext(userInfo)
   const featureFlagsContext = generateFeatureFlagsContext(featureFlags)
+  const dateContext = generateDateContext()
   
   let systemPrompt = ""
   
@@ -372,6 +442,8 @@ export function buildSystemPrompt(
   }
   
   systemPrompt += basePrompt
+  
+  systemPrompt += "\n\n" + dateContext
   
   if (preset !== "unrestricted") {
     systemPrompt += "\n\n" + presetConfig.systemModifier
@@ -402,8 +474,17 @@ export function buildSystemPrompt(
     systemPrompt += "\n\n" + personalizationContext
   }
   
+  if (memories && memories.length > 0) {
+    systemPrompt += `\n\n## SAVED MEMORIES\n\nThe following are important things to remember about this user:\n${memories.map(m => `- ${m}`).join("\n")}`
+  }
+  
   if (projectContext) {
     systemPrompt += `\n\n## PROJECT CONTEXT\n\n${projectContext}`
+  }
+  
+  const robloxGameContext = generateRobloxContext(robloxContext)
+  if (robloxGameContext) {
+    systemPrompt += "\n\n" + robloxGameContext
   }
   
   const activeFlags = []
